@@ -198,8 +198,8 @@ def train_step(model, optimizer, x, y, params, metric_dict):
 		}
 
 		prediction_loss, hsic_loss = compute_loss_unweighted(y, logits, zpred, params)
-		regularization_loss = tf.cast(tf.reduce_sum(model.losses), tf.float16)
-		loss = prediction_loss  + regularization_loss  # + params["alpha"] * hsic_loss
+		regularization_loss = tf.reduce_sum(model.losses)
+		loss = prediction_loss  + regularization_loss  + params["alpha"] * hsic_loss
 
 
 	gradients = tape.gradient(loss, model.trainable_weights)
