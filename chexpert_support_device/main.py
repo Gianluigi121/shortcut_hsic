@@ -2,6 +2,7 @@
 import os
 import tensorflow as tf
 import pandas as pd
+import functools
 from tensorflow.keras.applications.densenet import DenseNet121
 import tensorflow_probability as tfp
 import datetime
@@ -17,27 +18,17 @@ def read_decode_jpg(file_path):
 	img = tf.image.decode_jpeg(img, channels=3)
 	return img
 
-
-def decode_number(label):
-	label = tf.expand_dims(label, 0)
-	label = tf.strings.to_number(label)
-	return label
-
-
-def map_to_image_label(img_dir, label):
+def map_to_image_label(img_dir, label, pixel):
 	img = read_decode_jpg(img_dir)
-
-	# TODO: don't hardcode pixels
-	# Resize and rescale the image
-	img_height = 256
-	img_width = 256
+	img_height = pixel
+	img_width = pixel
 
 	img = tf.image.resize(img, (img_height, img_width))
 	img = img / 255
 	return img, label
 
 
-def create_dataset(csv_dir, params):
+def get_data(csv_dir, params):
 	df = pd.read_csv(csv_dir)
 	file_paths = df['Path'].values
 	y0 = df['y0'].values   # penumonia or not
@@ -45,23 +36,25 @@ def create_dataset(csv_dir, params):
 	y2 = df['y2'].values   # support device or not
 	labels = tf.stack([y0, y1, y2], axis=1)
 	labels = tf.cast(labels, tf.float32)
+	map_to_image_label_pixel = functools.partial(map_to_image_label, 
+		pixel = params['pixel'])
 
 	batch_size = params['batch_size']
 	ds = tf.data.Dataset.from_tensor_slices((file_paths, labels))
-	ds = ds.map(map_to_image_label).batch(batch_size)
+	ds = ds.map(map_to_image_label_pixel).batch(batch_size)
 	return ds
 
 
 def load_created_data(data_dir, skew_train, params):
 	skew_str = 'skew' if skew_train == 'True' else 'unskew'
 
-	train_data = create_dataset(f'{data_dir}/{skew_str}_train.csv', params)
-	valid_data = create_dataset(f'{data_dir}/{skew_str}_valid.csv', params)
+	train_data = get_data(f'{data_dir}/{skew_str}_train.csv', params)
+	valid_data = get_data(f'{data_dir}/{skew_str}_valid.csv', params)
 
 	test_data_dict = {}
 	pskew_list = [0.1, 0.3, 0.5, 0.7, 0.9, 0.95]
 	for pskew in pskew_list:
-		test_data = create_dataset(f'{data_dir}/{pskew}_test.csv', params)
+		test_data = get_data(f'{data_dir}/{pskew}_test.csv', params)
 		test_data_dict[pskew] = test_data
 
 	return train_data, valid_data, test_data_dict
@@ -101,7 +94,8 @@ class PretrainedDenseNet121(tf.keras.Model):
 		return self.dense(x), x
 
 
-# ---- loss setup
+# ---- evaluation functions
+# TODO: need to look at more evaluation metrics (and move to another file)
 def hsic(x, y, sigma=1.0):
 	""" Computes the HSIC between two arbitrary variables x, y"""
 
@@ -366,7 +360,8 @@ def main():
 		'lr': 0.001,
 		'embedding_dim': -1,
 		'l2_penalty': 0,
-		'num_epochs': 1
+		'num_epochs': 20, 
+		'pixel': 128
 	}
 
 	data_dir = '/nfs/turbo/coe-rbg/mmakar/multiple_shortcut/chexpert/experiment_data/rs0'
