@@ -3,10 +3,13 @@ import os
 import tensorflow as tf
 import pandas as pd
 from tensorflow.keras.applications.densenet import DenseNet121
-from tensorflow.keras.applications.resnet50 import ResNet50
 import tensorflow_probability as tfp
 import datetime
 
+# Note: you can reduce the precision to make things run faster 
+# by commenting out the following line, but it leads to 
+# inaccuracies with batch norm (maybe. I am not sure.)
+# tf.keras.mixed_precision.experimental.set_policy('mixed_float16')
 
 # --- Dataset prep functions
 def read_decode_jpg(file_path):
@@ -26,8 +29,8 @@ def map_to_image_label(img_dir, label):
 
 	# TODO: don't hardcode pixels
 	# Resize and rescale the image
-	img_height = 128
-	img_width = 128
+	img_height = 256
+	img_width = 256
 
 	img = tf.image.resize(img, (img_height, img_width))
 	img = img / 255
@@ -36,7 +39,6 @@ def map_to_image_label(img_dir, label):
 
 def create_dataset(csv_dir, params):
 	df = pd.read_csv(csv_dir)
-
 	file_paths = df['Path'].values
 	y0 = df['y0'].values   # penumonia or not
 	y1 = df['y1'].values   # sex male = 1, female = 0
@@ -66,39 +68,6 @@ def load_created_data(data_dir, skew_train, params):
 
 
 # ---- model setup
-
-
-
-# Define the model
-class PretrainedResNet50(tf.keras.Model):
-	def __init__(self, embedding_dim=-1, l2_penalty=0.0, l2_penalty_last_only=False):
-		super(PretrainedResNet50, self).__init__()
-		self.embedding_dim = embedding_dim
-		self.resnet = ResNet50(include_top=False, layers=tf.keras.layers,
-		                       weights='imagenet')
-		self.avg_pool = tf.keras.layers.GlobalAveragePooling2D(name='avg_pool')
-
-		if not l2_penalty_last_only:
-			regularizer = tf.keras.regularizers.l2(l2_penalty)
-			for layer in self.resnet.layers:
-				if hasattr(layer, 'kernel'):
-					self.add_loss(lambda layer=layer: regularizer(layer.kernel))
-
-		if self.embedding_dim != -1:
-			self.embedding = tf.keras.layers.Dense(self.embedding_dim,
-				kernel_regularizer=tf.keras.regularizers.l2(l2_penalty))
-
-		self.dense = tf.keras.layers.Dense(1,
-			kernel_regularizer=tf.keras.regularizers.l2(l2_penalty))
-
-	@tf.function
-	def call(self, inputs):
-		x = self.resnet(inputs)
-		x = self.avg_pool(x)
-		if self.embedding_dim != -1:
-			x = self.embedding(x)
-		return self.dense(x), x
-
 class PretrainedDenseNet121(tf.keras.Model):
 	"""pretrained Densenet architecture."""
 
@@ -235,8 +204,8 @@ def train_step(model, optimizer, x, y, params, metric_dict):
 		}
 
 		prediction_loss, hsic_loss = compute_loss_unweighted(y, logits, zpred, params)
-		regularization_loss = tf.reduce_sum(model.losses)
-		loss = regularization_loss + prediction_loss + params["alpha"] * hsic_loss
+		regularization_loss = tf.cast(tf.reduce_sum(model.losses), tf.float16)
+		loss = prediction_loss  + regularization_loss  # + params["alpha"] * hsic_loss
 
 
 	gradients = tape.gradient(loss, model.trainable_weights)
@@ -297,7 +266,7 @@ def train_eval(params, train_ds, valid_ds, save_directory, scratch_directory):
 
 	# set up the optimizer
 	optimizer = tf.keras.optimizers.Adam(learning_rate=params['lr'])
-	model = PretrainedResNet50(embedding_dim=params['embedding_dim'],
+	model = PretrainedDenseNet121(embedding_dim=params['embedding_dim'],
 		l2_penalty=params['l2_penalty'])
 
 	# start the training/eval
@@ -397,7 +366,7 @@ def main():
 		'lr': 0.001,
 		'embedding_dim': -1,
 		'l2_penalty': 0,
-		'num_epochs': 5
+		'num_epochs': 1
 	}
 
 	data_dir = '/nfs/turbo/coe-rbg/mmakar/multiple_shortcut/chexpert/experiment_data/rs0'
