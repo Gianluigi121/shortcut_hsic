@@ -7,8 +7,8 @@ from tensorflow.keras.applications.densenet import DenseNet121
 import tensorflow_probability as tfp
 import datetime
 
-# Note: you can reduce the precision to make things run faster 
-# by commenting out the following line, but it leads to 
+# Note: you can reduce the precision to make things run faster
+# by commenting out the following line, but it leads to
 # inaccuracies with batch norm (maybe. I am not sure.)
 # tf.keras.mixed_precision.experimental.set_policy('mixed_float16')
 
@@ -36,7 +36,7 @@ def get_data(csv_dir, params):
 	y2 = df['y2'].values   # support device or not
 	labels = tf.stack([y0, y1, y2], axis=1)
 	labels = tf.cast(labels, tf.float32)
-	map_to_image_label_pixel = functools.partial(map_to_image_label, 
+	map_to_image_label_pixel = functools.partial(map_to_image_label,
 		pixel = params['pixel'])
 
 	batch_size = params['batch_size']
@@ -335,7 +335,6 @@ def test_step(model, x, y, params, metric_dict):
 
 
 def test(model, test_ds_dict, params):
-	# model = tf.keras.models.load_model(model_dir)
 	pskew_list = [0.1, 0.5, 0.9]
 	for pskew in pskew_list:
 		test_ds = test_ds_dict[pskew]
@@ -360,7 +359,7 @@ def main():
 		'lr': 0.001,
 		'embedding_dim': -1,
 		'l2_penalty': 0,
-		'num_epochs': 20, 
+		'num_epochs': 1,
 		'pixel': 128
 	}
 
@@ -376,7 +375,7 @@ def main():
 		scratch_directory)
 
 	# --- evaluation
-	test(model, test_ds_dict, params)
+	test(model, test_data_dict, params)
 
 if __name__ == "__main__":
 	main()
