@@ -170,7 +170,8 @@ def train(exp_dir,
 	run_config = tf.estimator.RunConfig(
 		tf_random_seed=random_seed,
 		save_checkpoints_steps=save_checkpoints_steps,
-		keep_checkpoint_max=2)
+		# keep_checkpoint_max=2
+		)
 
 	est = tf.estimator.Estimator(
 		model_fn, model_dir=checkpoint_dir, params=params, config=run_config)

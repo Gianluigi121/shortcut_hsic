@@ -2,6 +2,8 @@
 import glob
 import os
 import tensorflow as tf
+import hashlib
+from subprocess import call
 
 
 def restrict_GPU_tf(gpuid, memfrac=0, use_cpu=False):
@@ -52,3 +54,56 @@ def flatten_dict(dd, separator='_', prefix=''):
 		for k, v in flatten_dict(vv, separator, kk).items()
 	} if isinstance(dd,
 		dict) else {prefix: dd}
+
+def config_hasher(config):
+	"""Generates hash string for a given config.
+	Args:
+		config: dict with hyperparams ordered by key
+	Returns:
+		hash of config
+	"""
+	config_string = ' '.join('--%s %s' % (k, str(v)) for k, v in config.items())
+	hash_string = hashlib.sha256(config_string.encode()).hexdigest()
+	return hash_string
+
+
+def tried_config(config, base_dir):
+	"""Tests if config has been tried before.
+	Args:
+		config: hyperparam config
+		base_dir: directory where the tuning folder lives
+	"""
+	hash_string = config_hasher(config)
+	# print(hash_string)
+	hash_dir = os.path.join(base_dir, 'tuning', hash_string)
+	print(hash_dir)
+	performance_file = os.path.join(hash_dir, 'performance.pkl')
+	# performance_file = os.path.join(hash_dir, 'asym_performance.pkl')
+	return os.path.isfile(performance_file)
+
+
+def tried_config_file(config, base_dir):
+	"""Tests if config has been tried before.
+	Args:
+		config: hyperparam config
+		base_dir: directory where the tuning folder lives
+	"""
+	hash_string = config_hasher(config)
+	hash_dir = os.path.join(base_dir, 'tuning', hash_string)
+	performance_file = os.path.join(hash_dir, 'performance.pkl')
+	# performance_file = os.path.join(hash_dir, 'asym_performance.pkl')
+	if os.path.isfile(performance_file):
+		return config
+
+
+def delete_config_file(config, base_dir):
+	""" deletes results for the specified config.
+		Args:
+		config: hyperparam config
+		base_dir: directory where the tuning folder lives
+	"""
+
+	hash_string = config_hasher(config)
+	hash_dir = os.path.join(base_dir, 'tuning', hash_string)
+	if os.path.exists(hash_dir):
+		call(f'rm -rf {hash_dir}', shell=True)
