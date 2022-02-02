@@ -64,7 +64,7 @@ tensorboard --logdir=my_checkpoint_dir --port 8088 --host localhost
 ```
 On your local machine, run
 ```bash
-  ssh -NL localhost:8088:localhost:6000 your_user_name@armis2.arc-ts.umich.edu
+  ssh -NL 8088:localhost:8088 your_user_name@armis2.arc-ts.umich.edu
  ```
 
 *Note*: make sure that the `save_checkpoints_steps` variable in the `train` function in `shared/train.py` is small if you're going to look at tensorboard.
