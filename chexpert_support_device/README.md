@@ -50,7 +50,8 @@ python -m chexpert_support_device.create_submit_slurm \
 	--slurm_save_dir '/home/mmakar/projects/multiple_shortcuts/shortcut_hsic/chexpert_slurm_scripts/' \
 	--model_to_tune 'unweighted_baseline' \
 	--batch_size 64 \
-	--overwrite
+	--overwrite \
+	--submit
 ```
 
 
