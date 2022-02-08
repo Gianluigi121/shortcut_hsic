@@ -51,6 +51,7 @@ def main(argv):
 		return data_builder.build_input_fns(
 			chexpert_data_dir=FLAGS.data_dir,
 			skew_train=FLAGS.skew_train,
+			weighted=FLAGS.weighted,
 			p_tr=FLAGS.p_tr,
 			p_val=FLAGS.p_val,
 			random_seed=FLAGS.random_seed)

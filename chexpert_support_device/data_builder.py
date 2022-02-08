@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 
+from chexpert_support_device import weighting as wt
 
 SOTO_MAIN_DIR = '/nfs/turbo/coe-soto'
 RBG_MAIN_DIR = '/nfs/turbo/coe-rbg'
@@ -29,11 +30,14 @@ def decode_number(label):
 	label = tf.strings.to_number(label)
 	return label
 
-def map_to_image_label(x, pixel):
+def map_to_image_label(x, pixel, weighted):
 	chest_image = x[0]
 	y0 = x[1]
 	y1 = x[2]
 	y2 = x[3]
+
+	if weighted == 'True':
+		sample_weights = x[4]
 
 	# decode images
 	img = read_decode_jpg(chest_image)
@@ -48,7 +52,13 @@ def map_to_image_label(x, pixel):
 	y2 = decode_number(y2)
 	labels = tf.concat([y0, y1, y2], axis=0)
 
-	return img, labels
+	if weighted == 'True':
+		sample_weights = decode_number(sample_weights)
+	else:
+		sample_weights = None
+
+	labels_and_weights = {'labels': labels, 'sample_weights': sample_weights}
+	return img, labels_and_weights
 
 
 def sample_y2_on_y1(df, y0_value, y1_value, dominant_probability, rng):
@@ -170,25 +180,36 @@ def save_created_data(data_frame, experiment_directory, filename):
 		index=False)
 
 
-def load_created_data(chexpert_data_dir, random_seed, skew_train):
+def load_created_data(chexpert_data_dir, random_seed, skew_train, weighted):
 	experiment_directory = f'{chexpert_data_dir}/experiment_data/rs{random_seed}'
 
 	skew_str = 'skew' if skew_train == 'True' else 'unskew'
 
 	train_data = pd.read_csv(
-		f'{experiment_directory}/{skew_str}_train.txt').values.tolist()
+		f'{experiment_directory}/{skew_str}_train.txt')
+
+	if weighted == 'True':
+		train_data = wt.get_simple_weighting(train_data)
+
+	train_data = train_data.values.tolist()
 	train_data = [
 		tuple(train_data[i][0].split(',')) for i in range(len(train_data))
 	]
 
 	validation_data = pd.read_csv(
-		f'{experiment_directory}/{skew_str}_valid.txt').values.tolist()
+		f'{experiment_directory}/{skew_str}_valid.txt')
+
+	if weighted == 'True':
+		validation_data = wt.get_simple_weighting(validation_data)
+
+	validation_data = validation_data.values.tolist()
 	validation_data = [
 		tuple(validation_data[i][0].split(',')) for i in range(len(validation_data))
 	]
 
-	test_data_dict = {}
 	pskew_list = [0.1, 0.3, 0.5, 0.7, 0.9, 0.95]
+
+	varying_joint_test_data_dict = {}
 	for pskew in pskew_list:
 		test_data = pd.read_csv(
 			f'{experiment_directory}/{pskew}_test.txt'
@@ -196,8 +217,36 @@ def load_created_data(chexpert_data_dir, random_seed, skew_train):
 		test_data = [
 			tuple(test_data[i][0].split(',')) for i in range(len(test_data))
 		]
-		test_data_dict[pskew] = test_data
+		varying_joint_test_data_dict[pskew] = test_data
 
+
+	fixed_joint_skew_test_data_dict = {}
+	for pskew in pskew_list:
+		test_data = pd.read_csv(
+			f'{experiment_directory}/{pskew}_fj09_test.txt'
+		).values.tolist()
+		test_data = [
+			tuple(test_data[i][0].split(',')) for i in range(len(test_data))
+		]
+		fixed_joint_skew_test_data_dict[pskew] = test_data
+
+
+	fixed_joint_unskew_test_data_dict = {}
+	for pskew in pskew_list:
+		test_data = pd.read_csv(
+			f'{experiment_directory}/{pskew}_fj05_test.txt'
+		).values.tolist()
+		test_data = [
+			tuple(test_data[i][0].split(',')) for i in range(len(test_data))
+		]
+		fixed_joint_unskew_test_data_dict[pskew] = test_data
+
+
+	test_data_dict = {
+		'varying_joint' : varying_joint_test_data_dict,
+		'fixed_joint_0.9' : fixed_joint_skew_test_data_dict,
+		'fixed_joint_0.5': fixed_joint_unskew_test_data_dict
+	}
 	return train_data, validation_data, test_data_dict
 
 
@@ -270,9 +319,23 @@ def create_save_chexpert_lists(chexpert_data_dir, p_tr=.7, p_val=0.25,
 		save_created_data(ts_sk_df, experiment_directory=experiment_directory,
 			filename=f'{pskew}_test')
 
+	# get test fixed aux joint skewed
+	for pskew in pskew_list:
+		ts_sk_df = get_skewed_data(ts_candidates_df, py1d=pskew, py2d=0.9, py00=0.7,
+			rng=rng)
+		save_created_data(ts_sk_df, experiment_directory=experiment_directory,
+			filename=f'{pskew}_fj09_test')
+
+	# get test fixed aux joint
+	for pskew in pskew_list:
+		ts_sk_df = get_skewed_data(ts_candidates_df, py1d=pskew, py2d=0.5, py00=0.7,
+			rng=rng)
+		save_created_data(ts_sk_df, experiment_directory=experiment_directory,
+			filename=f'{pskew}_fj05_test')
+
 
 def build_input_fns(chexpert_data_dir, skew_train='False',
-	p_tr=.7, p_val=0.25, random_seed=None):
+	weighted='False', p_tr=.7, p_val=0.25, random_seed=None):
 
 	# --- generate splits if they dont exist
 	if not os.path.exists(
@@ -287,20 +350,20 @@ def build_input_fns(chexpert_data_dir, skew_train='False',
 	# --load splits
 	train_data, valid_data, shifted_data_dict = load_created_data(
 		chexpert_data_dir=chexpert_data_dir, random_seed=random_seed,
-		skew_train=skew_train)
+		skew_train=skew_train, weighted=weighted)
 
 	# --this helps auto-set training steps at train time
 	train_data_size = len(train_data)
 
 	# Build an iterator over training batches.
 	def train_input_fn(params):
-		map_to_image_label_given_pixel = functools.partial(map_to_image_label,
-			pixel=params['pixel'])
+		map_to_image_label_wrapper = functools.partial(map_to_image_label,
+			pixel=params['pixel'], weighted=params['weighted'])
 		batch_size = params['batch_size']
 		num_epochs = params['num_epochs']
 
 		dataset = tf.data.Dataset.from_tensor_slices(train_data)
-		dataset = dataset.map(map_to_image_label_given_pixel, num_parallel_calls=1)
+		dataset = dataset.map(map_to_image_label_wrapper, num_parallel_calls=1)
 		# dataset = dataset.shuffle(int(train_data_size * 0.05)).batch(batch_size
 		# ).repeat(num_epochs)
 		dataset = dataset.batch(batch_size).repeat(num_epochs)
@@ -309,26 +372,32 @@ def build_input_fns(chexpert_data_dir, skew_train='False',
 	# Build an iterator over validation batches
 
 	def valid_input_fn(params):
-		map_to_image_label_given_pixel = functools.partial(map_to_image_label,
+		map_to_image_label_wrapper = functools.partial(map_to_image_label,
 			pixel=params['pixel'])
 		batch_size = params['batch_size']
 		valid_dataset = tf.data.Dataset.from_tensor_slices(valid_data)
-		valid_dataset = valid_dataset.map(map_to_image_label_given_pixel,
+		valid_dataset = valid_dataset.map(map_to_image_label_wrapper,
 			num_parallel_calls=1)
 		valid_dataset = valid_dataset.batch(batch_size, drop_remainder=True).repeat(
 			1)
 		return valid_dataset
 
 	# Build an iterator over the heldout set (shifted distribution).
-	def eval_input_fn_creater(py, params):
-		map_to_image_label_given_pixel = functools.partial(map_to_image_label,
+	def eval_input_fn_creater(py, params, fixed_joint=False, aux_joint_skew=0.5):
+		map_to_image_label_wrapper = functools.partial(map_to_image_label,
 			pixel=params['pixel'])
-		shifted_test_data = shifted_data_dict[py]
+		if fixed_joint:
+			if aux_joint_skew == 0.9:
+				shifted_test_data = shifted_data_dict['fixed_joint_0.9'][py]
+			elif aux_joint_skew == 0.5:
+				shifted_test_data = shifted_data_dict['fixed_joint_0.5'][py]
+		else:
+			shifted_test_data = shifted_data_dict['varying_joint'][py]
 		batch_size = params['batch_size']
 
 		def eval_input_fn():
 			eval_shift_dataset = tf.data.Dataset.from_tensor_slices(shifted_test_data)
-			eval_shift_dataset = eval_shift_dataset.map(map_to_image_label_given_pixel)
+			eval_shift_dataset = eval_shift_dataset.map(map_to_image_label_wrapper)
 			eval_shift_dataset = eval_shift_dataset.batch(batch_size).repeat(1)
 			return eval_shift_dataset
 		return eval_input_fn

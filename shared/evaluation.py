@@ -55,7 +55,7 @@ def compute_loss_weighted(labels, logits, embedding, sample_weights, params):
 	return unweighted_loss, hsic_loss
 
 
-def hsic(x, y, sample_weights=None, sigma=1.0):
+def hsic(x, y, sample_weights, sigma=1.0):
 	""" Computes the weighted HSIC between two arbitrary variables x, y"""
 
 	if len(x.shape) == 1:
@@ -133,10 +133,12 @@ def get_prediction_by_group(labels, predictions):
 
 	return mean_pred_dict
 
-def get_hsic_at_sigmas(sigma_list, labels, embedding, eager):
+def get_hsic_at_sigmas(sigma_list, labels, embedding, sample_weights,
+	eager):
 	result_dict = {}
 	for sigma_val in sigma_list:
-		hsic_at_sigma = hsic(embedding, labels[:, 1:], sigma=sigma_val)
+		hsic_at_sigma = hsic(embedding, labels[:, 1:], sample_weights=sample_weights,
+		 sigma=sigma_val)
 		if eager:
 			result_dict[f'hsic{sigma_val}'] = hsic_at_sigma.numpy()
 
@@ -158,7 +160,7 @@ def get_eval_metrics_dict(labels, predictions, sample_weights, params, eager=Fal
 	mean_pred_dict = get_prediction_by_group(labels, predictions["probabilities"])
 
 	hsic_val_dict = get_hsic_at_sigmas(sigma_list, labels,
-		predictions['embedding'], eager=eager)
+		predictions['embedding'], sample_weights, eager=eager)
 
 	return {**eval_metrics_dict, **mean_pred_dict, **hsic_val_dict}
 

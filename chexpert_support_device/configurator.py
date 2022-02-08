@@ -18,6 +18,34 @@ import collections
 import itertools
 
 
+
+def configure_hsic_model(skew_train, weighted, batch_size):
+	"""Creates hyperparameters for correlations experiment for SLABS model.
+
+	Returns:
+		Iterator with all hyperparameter combinations
+	"""
+	param_dict = {
+		'random_seed': [0],
+		'pixel': [128],
+		'l2_penalty': [0.0],
+		'embedding_dim': [-1],
+		'sigma': [10.0, 100.0, 1000.0],
+		'alpha': [100.0, 1000.0, 10000.0],
+		"architecture": ["pretrained_densenet"],
+		"batch_size": [batch_size],
+		'weighted': [weighted],
+		"conditional_hsic": ['False'],
+		"skew_train": [skew_train],
+		'num_epochs': [50]
+	}
+	print(param_dict)
+	param_dict_ordered = collections.OrderedDict(sorted(param_dict.items()))
+	keys, values = zip(*param_dict_ordered.items())
+	sweep = [dict(zip(keys, v)) for v in itertools.product(*values)]
+
+	return sweep
+
 def configure_baseline(skew_train, weighted, batch_size):
 	"""Creates hyperparameters for correlations experiment for SLABS model.
 
@@ -58,7 +86,7 @@ def get_sweep(experiment, model, batch_size):
 	Returns:
 		Iterator with all hyperparameter combinations
 	"""
-	implemented_models = ['unweighted_baseline']
+	implemented_models = ['unweighted_baseline', 'unweighted_hsic']
 
 	implemented_experiments = ['skew_train', 'unskew_train']
 
@@ -73,5 +101,9 @@ def get_sweep(experiment, model, batch_size):
 
 	if model == 'unweighted_baseline':
 		return configure_baseline(skew_train=skew_train, weighted='False',
+			batch_size=batch_size)
+
+	if model == 'unweighted_hsic':
+		return configure_hsic_model(skew_train=skew_train, weighted='False',
 			batch_size=batch_size)
 

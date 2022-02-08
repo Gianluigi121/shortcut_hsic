@@ -64,12 +64,15 @@ def model_fn(features, labels, mode, params):
 				"classify": tf.estimator.export.PredictOutput(predictions)
 			})
 
+	sample_weights = labels['sample_weights']
+	labels = labels['labels']
+
 	if mode == tf.estimator.ModeKeys.EVAL:
 		main_eval_metrics = {}
 
 		# -- main loss components
 		eval_pred_loss, eval_hsic = evaluation.compute_loss(labels, logits, zpred,
-			params)
+			sample_weights, params)
 
 		main_eval_metrics['pred_loss'] = tf.compat.v1.metrics.mean(eval_pred_loss)
 		main_eval_metrics['hsic'] = tf.compat.v1.metrics.mean(eval_hsic)
@@ -79,7 +82,7 @@ def model_fn(features, labels, mode, params):
 		# -- additional eval metrics
 		# TODO add evaluation metrics
 		additional_eval_metrics = evaluation.get_eval_metrics_dict(labels,
-			predictions, params)
+			predictions, sample_weights, params)
 
 		eval_metrics = {**main_eval_metrics, **additional_eval_metrics}
 
@@ -98,7 +101,7 @@ def model_fn(features, labels, mode, params):
 			ypred = tf.nn.sigmoid(logits)
 
 			prediction_loss, hsic_loss = evaluation.compute_loss(labels, logits, zpred,
-				params)
+				sample_weights, params)
 
 			regularization_loss = tf.reduce_sum(net.losses)
 			loss = regularization_loss + prediction_loss + params["alpha"] * hsic_loss
@@ -165,7 +168,7 @@ def train(exp_dir,
 	if debugger == 'True':
 		save_checkpoints_steps = 50
 	else:
-		save_checkpoints_steps = 1000
+		save_checkpoints_steps = 100
 
 	run_config = tf.estimator.RunConfig(
 		tf_random_seed=random_seed,
@@ -200,7 +203,8 @@ def train(exp_dir,
 		test_params = copy.deepcopy(params)
 		test_params['weighted'] = 'False'
 		for py in py1_y0_shift_list:
-			eval_input_fn = eval_input_fn_creater(py, test_params)
+			eval_input_fn = eval_input_fn_creater(py, test_params,
+				fixed_joint=True, aux_joint_skew=0.9)
 			distribution_results = est.evaluate(eval_input_fn, steps=1e5)
 			results[f'shift_{py}'] = distribution_results
 

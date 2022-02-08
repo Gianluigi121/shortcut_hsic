@@ -15,7 +15,7 @@ python -m chexpert_support_device.create_data \
 ### Run one model
 Suppose you want to save the model in `my_model_dir`, and save the checkpoints in `my_checkpoint_dir`
 ```bash
-srun --cpus-per-task=10 --nodes=1 --ntasks-per-node=1 --mem-per-gpu=2000m  --gres=precisionhealth --account=mmakar0 --partition=precisionhealth_owned1 --pty /bin/bash
+srun --cpus-per-task=10 --nodes=1 --ntasks-per-node=1 --mem-per-gpu=2000m  --gres=gpu:1 --account=precisionhealth_owned1 --partition=precisionhealth --pty /bin/bash
 
 source activate env
 
