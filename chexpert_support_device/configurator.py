@@ -16,7 +16,7 @@
 
 import collections
 import itertools
-
+from pathlib import Path
 
 
 def configure_hsic_model(skew_train, weighted, batch_size):
@@ -86,7 +86,10 @@ def get_sweep(experiment, model, batch_size):
 	Returns:
 		Iterator with all hyperparameter combinations
 	"""
-	implemented_models = ['unweighted_baseline', 'unweighted_hsic']
+
+	implemented_models = open(
+		f'{Path(__file__).resolve().parent}/implemented_models.txt',
+		"r").read().split("\n")
 
 	implemented_experiments = ['skew_train', 'unskew_train']
 

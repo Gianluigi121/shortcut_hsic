@@ -21,6 +21,7 @@ import os
 import pickle
 import argparse
 import tqdm
+from pathlib import Path
 
 import shared.train_utils as utils
 from chexpert_support_device import configurator
@@ -191,9 +192,9 @@ def main(experiment_name,
 
 if __name__ == "__main__":
 
-	# implemented_models = open(('/data/ddmg/users/mmakar/projects/path_spec/'
-	# 	'path_spec_adj/shared/implemented_models.txt'),
-	# "r").read().split("\n")
+	implemented_models = open(
+		f'{Path(__file__).resolve().parent}/implemented_models.txt',
+		"r").read().split("\n")
 
 	parser = argparse.ArgumentParser()
 
@@ -218,7 +219,7 @@ if __name__ == "__main__":
 
 	parser.add_argument('--model_to_tune', '-model_to_tune',
 		default='unweighted_baseline',
-		choices=['unweighted_baseline'],
+		choices=implemented_models,
 		help="Which model to tune",
 		type=str)
 
