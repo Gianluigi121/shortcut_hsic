@@ -55,7 +55,7 @@ def configure_baseline(skew_train, weighted, batch_size):
 	param_dict = {
 		'random_seed': [0],
 		'pixel': [128],
-		'l2_penalty': [0.0],
+		'l2_penalty': [0.0, 0.0001, 0.001],
 		'embedding_dim': [-1],
 		'sigma': [10.0],
 		'alpha': [0.0],
@@ -106,7 +106,16 @@ def get_sweep(experiment, model, batch_size):
 		return configure_baseline(skew_train=skew_train, weighted='False',
 			batch_size=batch_size)
 
+	if model == 'weighted_baseline':
+		return configure_baseline(skew_train=skew_train, weighted='True',
+			batch_size=batch_size)
+
 	if model == 'unweighted_hsic':
 		return configure_hsic_model(skew_train=skew_train, weighted='False',
 			batch_size=batch_size)
+
+	if model == 'weighted_hsic':
+		return configure_hsic_model(skew_train=skew_train, weighted='True',
+			batch_size=batch_size)
+
 

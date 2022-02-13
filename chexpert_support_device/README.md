@@ -48,7 +48,7 @@ python -m chexpert_support_device.create_submit_slurm \
 	--base_dir '/nfs/turbo/coe-rbg/mmakar/multiple_shortcut/chexpert/' \
 	--checkpoint_dir '/scratch/mmakar_root/mmakar0/mmakar/multiple_shortcut/chexpert/' \
 	--slurm_save_dir '/home/mmakar/projects/multiple_shortcuts/shortcut_hsic/chexpert_slurm_scripts/' \
-	--model_to_tune 'unweighted_baseline' \
+	--model_to_tune 'unweighted_hsic' \
 	--batch_size 64 \
 	--overwrite \
 	--submit
@@ -69,3 +69,16 @@ On your local machine, run
 
 *Note*: make sure that the `save_checkpoints_steps` variable in the `train` function in `shared/train.py` is small if you're going to look at tensorboard.
 
+
+## Cross validation
+Run
+```bash
+python -m chexpert_support_device.cross_validation \
+	--base_dir '/nfs/turbo/coe-rbg/mmakar/multiple_shortcut/chexpert/' \
+	--experiment_name 'skew_train' \
+	--model_to_tune 'weighted_hsic' \
+	--xv_method 'two_step' \
+	--batch_size 64 \
+	--num_workers 1 \
+	--pval 0.05
+```

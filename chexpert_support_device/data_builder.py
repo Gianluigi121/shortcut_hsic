@@ -61,6 +61,37 @@ def map_to_image_label(x, pixel, weighted):
 	return img, labels_and_weights
 
 
+
+def map_to_image_label_test(x, pixel, weighted):
+	""" same as normal function by makes sure to not use
+	weighting. """
+	chest_image = x[0]
+	y0 = x[1]
+	y1 = x[2]
+	y2 = x[3]
+
+	# decode images
+	img = read_decode_jpg(chest_image)
+
+	# resize, rescale  image
+	img = tf.image.resize(img, (pixel, pixel))
+	img = img / 255
+
+	# get the label vector
+	y0 = decode_number(y0)
+	y1 = decode_number(y1)
+	y2 = decode_number(y2)
+	labels = tf.concat([y0, y1, y2], axis=0)
+
+	if weighted == 'True':
+		sample_weights = tf.ones_like(y0)
+	else:
+		sample_weights = None
+
+	labels_and_weights = {'labels': labels, 'sample_weights': sample_weights}
+	return img, labels_and_weights
+
+
 def sample_y2_on_y1(df, y0_value, y1_value, dominant_probability, rng):
 	dominant_group = df.index[
 		((df.y0 == y0_value) & (df.y1 == y1_value) & (df.y2 == y1_value))
@@ -189,7 +220,7 @@ def load_created_data(chexpert_data_dir, random_seed, skew_train, weighted):
 		f'{experiment_directory}/{skew_str}_train.txt')
 
 	if weighted == 'True':
-		train_data = wt.get_simple_weighting(train_data)
+		train_data = wt.get_simple_weights(train_data)
 
 	train_data = train_data.values.tolist()
 	train_data = [
@@ -200,7 +231,7 @@ def load_created_data(chexpert_data_dir, random_seed, skew_train, weighted):
 		f'{experiment_directory}/{skew_str}_valid.txt')
 
 	if weighted == 'True':
-		validation_data = wt.get_simple_weighting(validation_data)
+		validation_data = wt.get_simple_weights(validation_data)
 
 	validation_data = validation_data.values.tolist()
 	validation_data = [
@@ -373,7 +404,7 @@ def build_input_fns(chexpert_data_dir, skew_train='False',
 
 	def valid_input_fn(params):
 		map_to_image_label_wrapper = functools.partial(map_to_image_label,
-			pixel=params['pixel'])
+			pixel=params['pixel'], weighted=params['weighted'])
 		batch_size = params['batch_size']
 		valid_dataset = tf.data.Dataset.from_tensor_slices(valid_data)
 		valid_dataset = valid_dataset.map(map_to_image_label_wrapper,
@@ -384,8 +415,8 @@ def build_input_fns(chexpert_data_dir, skew_train='False',
 
 	# Build an iterator over the heldout set (shifted distribution).
 	def eval_input_fn_creater(py, params, fixed_joint=False, aux_joint_skew=0.5):
-		map_to_image_label_wrapper = functools.partial(map_to_image_label,
-			pixel=params['pixel'])
+		map_to_image_label_wrapper = functools.partial(map_to_image_label_test,
+			pixel=params['pixel'], weighted=params['weighted'])
 		if fixed_joint:
 			if aux_joint_skew == 0.9:
 				shifted_test_data = shifted_data_dict['fixed_joint_0.9'][py]

@@ -168,7 +168,7 @@ def train(exp_dir,
 	if debugger == 'True':
 		save_checkpoints_steps = 50
 	else:
-		save_checkpoints_steps = 100
+		save_checkpoints_steps = 100000
 
 	run_config = tf.estimator.RunConfig(
 		tf_random_seed=random_seed,
@@ -184,15 +184,14 @@ def train(exp_dir,
 
 	print(f'=======TRAINING STEPS {training_steps}=============')
 
-	saving_listeners = [
-		EvalCheckpointSaverListener(est, train_input_fn, "train"),
-		EvalCheckpointSaverListener(est, eval_input_fn_creater(0.1, params), "0.1"),
-		EvalCheckpointSaverListener(est, eval_input_fn_creater(0.5, params), "0.5"),
-		EvalCheckpointSaverListener(est, eval_input_fn_creater(0.9, params), "0.9"),
-	]
+	# saving_listeners = [
+	# 	EvalCheckpointSaverListener(est, train_input_fn, "train"),
+	# 	EvalCheckpointSaverListener(est, eval_input_fn_creater(0.1, params), "0.1"),
+	# 	EvalCheckpointSaverListener(est, eval_input_fn_creater(0.5, params), "0.5"),
+	# 	EvalCheckpointSaverListener(est, eval_input_fn_creater(0.9, params), "0.9"),
+	# ]
 
-	est.train(train_input_fn, steps=training_steps,
-		saving_listeners=saving_listeners)
+	est.train(train_input_fn, steps=training_steps)
 
 	validation_results = est.evaluate(valid_input_fn)
 	results = {"validation": validation_results}
@@ -200,10 +199,8 @@ def train(exp_dir,
 	# ---- non-asymmetric analysis
 	if py1_y0_shift_list is not None:
 		# -- during testing, we dont have access to labels/weights
-		test_params = copy.deepcopy(params)
-		test_params['weighted'] = 'False'
 		for py in py1_y0_shift_list:
-			eval_input_fn = eval_input_fn_creater(py, test_params,
+			eval_input_fn = eval_input_fn_creater(py, params,
 				fixed_joint=True, aux_joint_skew=0.9)
 			distribution_results = est.evaluate(eval_input_fn, steps=1e5)
 			results[f'shift_{py}'] = distribution_results

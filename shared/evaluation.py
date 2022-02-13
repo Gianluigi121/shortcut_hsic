@@ -52,7 +52,7 @@ def compute_loss_weighted(labels, logits, embedding, sample_weights, params):
 			sigma=params['sigma'])
 	else:
 		hsic_loss = 0.0
-	return unweighted_loss, hsic_loss
+	return weighted_loss, hsic_loss
 
 
 def hsic(x, y, sample_weights, sigma=1.0):
