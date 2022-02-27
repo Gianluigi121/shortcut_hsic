@@ -60,8 +60,6 @@ def map_to_image_label(x, pixel, weighted):
 	labels_and_weights = {'labels': labels, 'sample_weights': sample_weights}
 	return img, labels_and_weights
 
-
-
 def map_to_image_label_test(x, pixel, weighted):
 	""" same as normal function by makes sure to not use
 	weighting. """
@@ -283,7 +281,7 @@ def load_created_data(chexpert_data_dir, random_seed, skew_train, weighted):
 
 def create_save_chexpert_lists(chexpert_data_dir, p_tr=.7, p_val=0.25,
 	random_seed=None):
-
+	p_dom = 0.9
 	if random_seed is None:
 		rng = np.random.RandomState(0)
 	else:
@@ -321,7 +319,7 @@ def create_save_chexpert_lists(chexpert_data_dir, p_tr=.7, p_val=0.25,
 	assert len(set(tr_candidates) & set(val_candidates)) == 0
 
 	# --- get train datasets
-	tr_sk_df = get_skewed_data(tr_candidates_df, py1d=0.9, py2d=0.9, py00=0.7,
+	tr_sk_df = get_skewed_data(tr_candidates_df, py1d=p_dom, py2d=p_dom, py00=0.7,
 		rng=rng)
 	save_created_data(tr_sk_df, experiment_directory=experiment_directory,
 		filename='skew_train')
@@ -332,7 +330,7 @@ def create_save_chexpert_lists(chexpert_data_dir, p_tr=.7, p_val=0.25,
 		filename='unskew_train')
 
 	# --- get validation datasets
-	val_sk_df = get_skewed_data(val_candidates_df, py1d=0.9, py2d=0.9, py00=0.7,
+	val_sk_df = get_skewed_data(val_candidates_df, py1d=p_dom, py2d=p_dom, py00=0.7,
 		rng=rng)
 	save_created_data(val_sk_df, experiment_directory=experiment_directory,
 		filename='skew_valid')
@@ -352,7 +350,7 @@ def create_save_chexpert_lists(chexpert_data_dir, p_tr=.7, p_val=0.25,
 
 	# get test fixed aux joint skewed
 	for pskew in pskew_list:
-		ts_sk_df = get_skewed_data(ts_candidates_df, py1d=pskew, py2d=0.9, py00=0.7,
+		ts_sk_df = get_skewed_data(ts_candidates_df, py1d=pskew, py2d=p_dom, py00=0.7,
 			rng=rng)
 		save_created_data(ts_sk_df, experiment_directory=experiment_directory,
 			filename=f'{pskew}_fj09_test')
