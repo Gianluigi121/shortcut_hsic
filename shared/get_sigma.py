@@ -43,7 +43,7 @@ def get_last_saved_model(estimator_dir):
 	return model
 
 
-def get_data_chexpert(kfolds, config, base_dir):
+def get_data_chexpert(config, base_dir):
 	experiment_directory = f"{base_dir}/experiment_data/rs{config['random_seed']}"
 
 	_, valid_data, _ = chx.load_created_data(
@@ -55,14 +55,14 @@ def get_data_chexpert(kfolds, config, base_dir):
 
 	valid_dataset = tf.data.Dataset.from_tensor_slices(valid_data)
 	valid_dataset = valid_dataset.map(map_to_image_label_given_pixel, num_parallel_calls=1)
-	batch_size = int(len(valid_data) / kfolds)
-	valid_dataset = valid_dataset.batch(batch_size, drop_remainder=True).repeat(1)
+	valid_dataset = valid_dataset.batch(config['batch_size'],
+		drop_remainder=False).repeat(1)
 	return valid_dataset
 
 
-def get_optimal_sigma_for_run(config, kfolds, base_dir):
+def get_optimal_sigma_for_run(config, base_dir, t1_error, n_permute=100):
 	# -- get the dataset
-	valid_dataset = get_data_chexpert(kfolds, config, base_dir)
+	valid_dataset = get_data_chexpert(config, base_dir)
 
 	# -- model
 	hash_string = utils.config_hasher(config)
@@ -70,39 +70,68 @@ def get_optimal_sigma_for_run(config, kfolds, base_dir):
 	model = get_last_saved_model(hash_dir)
 
 	# ---compute hsic over folds
-	metric_values = []
+	z_pred_list = []
+	labels_list = []
+	sample_weights_list = []
 	for batch_id, examples in enumerate(valid_dataset):
 		# print(f'{batch_id} / {kfolds}')
 		x, labels_weights = examples
 		sample_weights = labels_weights['sample_weights']
+		sample_weights_list.append(sample_weights)
+
 		labels = labels_weights['labels']
+		labels_list.append(labels)
 
-		logits = model(tf.convert_to_tensor(x))['logits']
 		zpred = model(tf.convert_to_tensor(x))['embedding']
+		z_pred_list.append(zpred)
 
-		metric_value = evaluation.hsic(
-			x=zpred, y=labels[:, 1:],
+	zpred = tf.concat(z_pred_list, axis=0)
+	labels = tf.concat(labels_list, axis=0)
+	sample_weights = tf.concat(sample_weights_list, axis=0)
+
+	hsic_val = evaluation.hsic(
+		x=zpred, y=labels[:, 1:],
+		sample_weights=sample_weights,
+		sigma=config['sigma'])[[0]].numpy()
+
+	perm_hsic_val = []
+	for seed in range(n_permute):
+		if seed % 10 ==0:
+			print(f'{seed}/{n_permute}')
+
+		labels_p = tf.random.shuffle(labels, seed=seed)
+		# labels_p = tf.cast(tf.random.stateless_binomial(
+		# 	shape=tf.shape(labels), probs=0.5, counts=1,
+		# 	seed=[seed, seed]), dtype=tf.float32)
+
+		perm_hsic_val.append(evaluation.hsic(
+			x=zpred, y=labels_p[:, 1:],
 			sample_weights=sample_weights,
-			sigma=config['sigma'])[[0]].numpy()
+			sigma=config['sigma'])[[0]].numpy())
 
-		metric_values.append(metric_value)
+	perm_hsic_val = np.concatenate(
+		perm_hsic_val, axis=0)
+
+	thresh = np.quantile(perm_hsic_val, 1-t1_error)
+	# accept_null = np.around(hsic_val, decimals=4) <= np.around(thresh, decimals=4)
+	accept_null = hsic_val <= thresh
+	print(config['sigma'], config['alpha'], hsic_val, thresh, accept_null[0])
 
 	curr_results = pd.DataFrame({
 		'random_seed': config['random_seed'],
 		'alpha': config['alpha'],
 		'sigma': config['sigma'],
-		'hsic': np.mean(metric_values),
-		'pval': stats.ttest_1samp(metric_values, 0.0)[1]
+		'hsic': hsic_val,
+		'significant': accept_null
 	}, index=[0])
-	if (np.mean(metric_values) == 0.0 and np.var(metric_values) == 0.0):
-		curr_results['pval'] = 1
 	return curr_results
 
 
-def get_optimal_sigma(all_config, kfolds, num_workers, base_dir):
+def get_optimal_sigma(all_config, t1_error, n_permute,
+	num_workers, base_dir):
 	all_results = []
 	runner_wrapper = functools.partial(get_optimal_sigma_for_run,
-		kfolds=kfolds, base_dir=base_dir)
+	 base_dir=base_dir, t1_error=t1_error, n_permute=n_permute)
 
 	if num_workers <=0:
 		for cid, config in enumerate(all_config):
