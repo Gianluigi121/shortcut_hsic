@@ -10,7 +10,7 @@ import shared.cross_validation as cv
 
 
 def main(base_dir, experiment_name, model_to_tune,
-	xv_method, batch_size, num_workers, pval):
+	xv_method, batch_size, num_workers, t1_error, n_permute):
 
 	if not os.path.exists(f'{base_dir}/final_models/'):
 		os.mkdir(f'{base_dir}/final_models/')
@@ -27,14 +27,14 @@ def main(base_dir, experiment_name, model_to_tune,
 	all_config = list(itertools.compress(all_config, configs_available))
 	found_configs = len(all_config)
 	print(f'------ FOUND {found_configs} / {original_configs}---------')
-
 	best_model_results, best_model_configs = cv.get_optimal_model_results(
 		mode=xv_method,
 		configs=all_config,
 		base_dir=base_dir,
 		hparams=['alpha', 'sigma', 'l2_penalty', 'embedding_dim'],
 		num_workers=num_workers,
-		pval=0.05)
+		t1_error=t1_error,
+		n_permute=n_permute)
 
 	best_model_results.to_csv(
 		(f"{base_dir}/final_models/optimal_results_{model_to_tune}_{xv_method}_{experiment_name}"
@@ -45,8 +45,6 @@ def main(base_dir, experiment_name, model_to_tune,
 		(f"{base_dir}/final_models/optimal_config_{model_to_tune}_{xv_method}_{experiment_name}"
 			f"_pix{all_config[0]['pixel']}_bs{all_config[0]['batch_size']}.csv"),
 		index=False)
-
-
 
 if __name__ == "__main__":
 	implemented_models = open(
@@ -86,10 +84,14 @@ if __name__ == "__main__":
 		help="number of workers used in parallel",
 		type=int)
 
-
-	parser.add_argument('--pval', '-pval',
-		help="P-value for hsic significance",
+	parser.add_argument('--t1_error', '-t1_error',
+		help="level of tolerance for rejecting null",
 		type=float)
+
+	parser.add_argument('--n_permute', '-n_permute',
+		help="number of permutations for hsic null test",
+		default=100,
+		type=int)
 
 	args = vars(parser.parse_args())
 	main(**args)

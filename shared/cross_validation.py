@@ -87,45 +87,33 @@ def reshape_results(results):
 
 
 def get_optimal_model_results(mode, configs, base_dir, hparams,
-	 num_workers, pval):
+	 num_workers, t1_error, n_permute):
 
 	if mode not in ['classic', 'two_step']:
 		raise NotImplementedError('Can only run classic or two_step modes')
 	if mode == 'classic':
 		return get_optimal_model_classic(configs, None, base_dir, hparams, num_workers)
 	elif mode =='two_step':
-		return get_optimal_model_two_step(configs, base_dir, hparams, pval, num_workers)
+		return get_optimal_model_two_step(configs, base_dir, hparams,
+			t1_error, n_permute, num_workers)
 
 
 
-def get_optimal_model_two_step(configs, base_dir, hparams, pval, num_workers):
+def get_optimal_model_two_step(configs, base_dir, hparams, t1_error,
+	n_permute, num_workers):
 	all_results, available_configs = import_results(configs, num_workers, base_dir)
-	sigma_results = get_sigma.get_optimal_sigma(available_configs, kfolds=3,
-		num_workers=0, base_dir=base_dir)
+	sigma_results = get_sigma.get_optimal_sigma(available_configs, t1_error=t1_error,
+		n_permute=n_permute, num_workers=num_workers, base_dir=base_dir)
 	print("this is sig res")
 	print(sigma_results.sort_values(['random_seed', 'sigma', 'alpha']))
 
-	best_pval = sigma_results.groupby('random_seed').pval.max()
-	best_pval = best_pval.to_frame()
-	best_pval.reset_index(inplace=True, drop=False)
-	best_pval.rename(columns={'pval': 'best_pval'}, inplace=True)
+	if not sigma_results.significant.max():
+		sigma_results.significant[(sigma_results.hsic == sigma_results.hsic.min())] = True
 
-	smallest_hsic = sigma_results.groupby('random_seed').hsic.min()
-	smallest_hsic = smallest_hsic.to_frame()
-	smallest_hsic.reset_index(inplace=True, drop=False)
-	smallest_hsic.rename(columns={'hsic': 'smallest_hsic'}, inplace=True)
-
-	sigma_results = sigma_results.merge(best_pval, on ='random_seed')
-	sigma_results = sigma_results.merge(smallest_hsic, on ='random_seed')
-
+	sigma_results = sigma_results[(sigma_results.significant==True)]
 	filtered_results = all_results.merge(sigma_results, on=['random_seed', 'sigma', 'alpha'])
 
-	filtered_results = filtered_results[
-		(((filtered_results.pval >= pval) &  (filtered_results.best_pval >= pval)) | \
-		((filtered_results.best_pval < pval) &  (filtered_results.hsic == filtered_results.smallest_hsic)))
-		]
-
-	filtered_results.drop(['pval', 'best_pval'], inplace=True, axis=1)
+	filtered_results.drop(['significant'], inplace=True, axis=1)
 	filtered_results.reset_index(drop=True, inplace=True)
 
 	unique_filtered_results = filtered_results[['random_seed', 'sigma', 'alpha']].copy()
@@ -147,6 +135,7 @@ def get_optimal_model_classic(configs, filtered_results, base_dir, hparams, num_
 
 	columns_to_keep = hparams + ['random_seed', 'validation_pred_loss']
 	best_loss = all_results[columns_to_keep]
+	print(print(best_loss.sort_values(['random_seed', 'sigma', 'alpha'])))
 	best_loss = best_loss.groupby('random_seed').validation_pred_loss.min()
 	best_loss = best_loss.to_frame()
 	best_loss.reset_index(drop=False, inplace=True)
@@ -158,7 +147,7 @@ def get_optimal_model_classic(configs, filtered_results, base_dir, hparams, num_
 		(all_results.validation_pred_loss == all_results.min_validation_pred_loss)
 	]
 
-	# print(all_results[['random_seed', 'sigma', 'alpha', 'l2_penalty']])
+	print(all_results[['random_seed', 'sigma', 'alpha', 'l2_penalty']])
 
 	optimal_configs = all_results[['random_seed', 'hash']]
 
