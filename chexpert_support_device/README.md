@@ -48,9 +48,8 @@ python -m chexpert_support_device.create_submit_slurm \
 	--base_dir '/nfs/turbo/coe-rbg/mmakar/multiple_shortcut/chexpert/' \
 	--checkpoint_dir '/scratch/mmakar_root/mmakar0/mmakar/multiple_shortcut/chexpert/' \
 	--slurm_save_dir '/home/mmakar/projects/multiple_shortcuts/shortcut_hsic/chexpert_slurm_scripts/' \
-	--model_to_tune 'unweighted_hsic' \
+	--model_to_tune 'weighted_hsic' \
 	--batch_size 64 \
-	--overwrite \
 	--submit
 ```
 
@@ -80,5 +79,22 @@ python -m chexpert_support_device.cross_validation \
 	--xv_method 'two_step' \
 	--batch_size 64 \
 	--num_workers 1 \
-	--pval 0.05
+	--t1_error 0.05
 ```
+
+## get predictions
+```bash
+python -m chexpert_support_device.get_predictions \
+	--base_dir '/nfs/turbo/coe-rbg/mmakar/multiple_shortcut/chexpert/' \
+	--experiment_name 'skew_train' \
+	--random_seed 0 \
+	--batch_size 64  \
+	--pixel 128 \
+	--model_name 'weighted_hsic' \
+	--xv_mode 'two_step' \
+	--fixed_joint \
+	--aux_joint_skew 0.9 \
+	--get_optimal_only
+```
+
+
