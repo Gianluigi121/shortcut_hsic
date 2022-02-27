@@ -27,7 +27,7 @@ import shared.train_utils as utils
 from chexpert_support_device import configurator
 
 # TODO: need to manage overwriting better
-ARMIS_USER = 'mmakar'
+ARMIS_USER = 'precisionhealth'
 ARMIS_MAIN_DIR = '/nfs/turbo/coe-rbg'
 
 if ARMIS_USER == 'precisionhealth':
@@ -88,7 +88,7 @@ def runner(config, base_dir, checkpoint_dir, slurm_save_dir, overwrite,
 	f = open(f'{slurm_save_dir}/{hash_string}.sbatch', 'x')
 	f.write('#!/bin/bash\n')
 	f.write('#SBATCH --time=10:00:00\n')
-	f.write('#SBATCH --cpus-per-task=10\n')
+	f.write('#SBATCH --cpus-per-task=5\n')
 	f.write('#SBATCH --nodes=1\n')
 	f.write('#SBATCH --output=gpu.out\n')
 	f.write('#SBATCH --tasks-per-node=1\n')
@@ -97,6 +97,8 @@ def runner(config, base_dir, checkpoint_dir, slurm_save_dir, overwrite,
 	if HOST == 'ARMIS':
 		f.write(f'#SBATCH --account={ACCOUNT}\n')
 		f.write(f'#SBATCH --partition={PARTITION}\n')
+		# f.write(f'#SBATCH --mail-user=mmakar@umich.edu\n')
+		# f.write(f'#SBATCH --mail-type=BEGIN,END\n')
 		# f.write('#SBATCH -w, --nodelist=armis28004\n')
 	if HOST == 'TIG':
 		f.write('#SBATCH --partition=gpu\n')
@@ -156,7 +158,6 @@ def main(experiment_name,
 		Returns:
 			nothing
 	"""
-
 	if not os.path.exists(slurm_save_dir):
 		os.system(f'mkdir -p {slurm_save_dir}')
 
