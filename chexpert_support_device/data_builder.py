@@ -401,22 +401,26 @@ def create_save_chexpert_lists(chexpert_data_dir, p_tr=.7, p_val=0.25,
 	# --- get train datasets
 	tr_sk_df = get_skewed_data(tr_candidates_df, py1d=p_dom, py2d=p_dom, py00=0.7,
 		rng=rng)
+	tr_sk_df.drop(['uid', 'patient', 'study'], axis=1, inplace=True)
 	save_created_data(tr_sk_df, experiment_directory=experiment_directory,
 		filename='skew_train')
 
 	tr_usk_df = get_skewed_data(tr_candidates_df, py1d=0.5, py2d=0.5, py00=0.7,
 		rng=rng)
+	tr_usk_df.drop(['uid', 'patient', 'study'], axis=1, inplace=True)
 	save_created_data(tr_usk_df, experiment_directory=experiment_directory,
 		filename='unskew_train')
 
 	# --- get validation datasets
 	val_sk_df = get_skewed_data(val_candidates_df, py1d=p_dom, py2d=p_dom, py00=0.7,
 		rng=rng)
+	val_sk_df.drop(['uid', 'patient', 'study'], axis=1, inplace=True)
 	save_created_data(val_sk_df, experiment_directory=experiment_directory,
 		filename='skew_valid')
 
 	val_usk_df = get_skewed_data(val_candidates_df, py1d=0.5, py2d=0.5, py00=0.7,
 		rng=rng)
+	val_usk_df.drop(['uid', 'patient', 'study'], axis=1, inplace=True)
 	save_created_data(val_usk_df, experiment_directory=experiment_directory,
 		filename='unskew_valid')
 
@@ -425,6 +429,7 @@ def create_save_chexpert_lists(chexpert_data_dir, p_tr=.7, p_val=0.25,
 	for pskew in pskew_list:
 		ts_sk_df = get_skewed_data(ts_candidates_df, py1d=pskew, py2d=pskew, py00=0.7,
 			rng=rng)
+		ts_sk_df.drop(['uid', 'patient', 'study'], axis=1, inplace=True)
 		save_created_data(ts_sk_df, experiment_directory=experiment_directory,
 			filename=f'{pskew}_test')
 
@@ -432,6 +437,7 @@ def create_save_chexpert_lists(chexpert_data_dir, p_tr=.7, p_val=0.25,
 	for pskew in pskew_list:
 		ts_sk_df = get_skewed_data(ts_candidates_df, py1d=pskew, py2d=p_dom, py00=0.7,
 			rng=rng)
+		ts_sk_df.drop(['uid', 'patient', 'study'], axis=1, inplace=True)
 		save_created_data(ts_sk_df, experiment_directory=experiment_directory,
 			filename=f'{pskew}_fj09_test')
 
@@ -439,6 +445,7 @@ def create_save_chexpert_lists(chexpert_data_dir, p_tr=.7, p_val=0.25,
 	for pskew in pskew_list:
 		ts_sk_df = get_skewed_data(ts_candidates_df, py1d=pskew, py2d=0.5, py00=0.7,
 			rng=rng)
+		ts_sk_df.drop(['uid', 'patient', 'study'], axis=1, inplace=True)
 		save_created_data(ts_sk_df, experiment_directory=experiment_directory,
 			filename=f'{pskew}_fj05_test')
 

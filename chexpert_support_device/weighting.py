@@ -5,22 +5,36 @@ import pandas as pd
 def get_simple_weights(data):
 	# --- load data
 	data = data['0'].str.split(",", expand=True)
-	D = data.shape[0]
-	data.columns = ['file_name'] +  [f'y{i}' for i in range(D-1)]
+	D = data.shape[1] -1
+	data.columns = ['file_name'] +  [f'y{i}' for i in range(D)]
 
-	for i in range(D-1): 
+	for i in range(D): 
 		data[f'y{i}'] = data[f'y{i}'].astype(np.float32)
 
 	data['weights'] = 0.0
 
+	# --- get all combinations 
+	all_y_vals = np.array(
+		np.meshgrid(*[[0, 1] * D])).reshape(-1, D)
+
 	# --- compute weights
-	for y0_val in [0, 1]:
-			for y1_val in [0, 1]:
-					for y2_val in [0, 1]:
-							mask = (data.y0 == y0_val) * (data.y1 == y1_val) * (data.y2 == y2_val) * 1.0
-							denom = np.mean(mask)
-							num = np.mean((data.y0 == y0_val)) * np.mean((data.y1 == y1_val) * (data.y2 == y2_val))
-							data['weights'] = mask * (num/denom) + (1 - mask) * data['weights']
+	for i in range(all_y_vals.shape[0]):
+		mask = data[[f'y{i}' for i in range(D)]] == all_y_vals[i,:]
+		mask = mask.min(axis=1)
+		denom = np.mean(mask)
+		if denom == 0:
+			data['weights'] = mask * 0.0 + (1 - mask) * data['weights']
+
+		else: 
+			py = np.mean((data['y0'] == all_y_vals[i,0]))
+			pv = data[[f'y{i}' for i in range(1, D)]] == all_y_vals[i, 1:]
+			pv = pv.min(axis=1)
+			pv = np.mean(pv)
+
+			num =  py * pv
+			data['weights'] = mask * (num/denom) + (1 - mask) * data['weights']
+	
+
 	txt_data = data.file_name 
 	for i in range(D -1):
 		txt_data = txt_data + ',' + data[f'y{i}'].astype(str)
