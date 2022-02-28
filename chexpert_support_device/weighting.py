@@ -18,7 +18,7 @@ def get_simple_weights(data):
 					for y2_val in [0, 1]:
 							mask = (data.y0 == y0_val) * (data.y1 == y1_val) * (data.y2 == y2_val) * 1.0
 							denom = np.mean(mask)
-							num = np.mean((data.y0 == y0_val)) * np.mean((data.y1 == y1_val))  * np.mean((data.y2 == y2_val))
+							num = np.mean((data.y0 == y0_val)) * np.mean((data.y1 == y1_val) * (data.y2 == y2_val))
 							data['weights'] = mask * (num/denom) + (1 - mask) * data['weights']
 	data = data.file_name + \
 			',' + data.y0.astype(str) + \
