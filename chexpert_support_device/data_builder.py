@@ -213,15 +213,15 @@ def save_created_data(data_frame, experiment_directory, filename):
 		index=False)
 
 
-def load_created_data(chexpert_data_dir, random_seed, v_mode, skew_train, weighted):
+def load_created_data(chexpert_data_dir, random_seed, v_mode, v_dim, skew_train, weighted):
 	experiment_directory = f'{chexpert_data_dir}/experiment_data/rs{random_seed}'
 
 	skew_str = 'skew' if skew_train == 'True' else 'unskew'
 
 	if v_mode == 'noisy': 
-		v_str = 'noisy_'
-	elif v_mode == 'corry_':
-		v_str = 'corry'
+		v_str = f'noisy{v_dim}_'
+	elif v_mode == 'corry':
+		v_str = f'corry{v_dim}_'
 	else: 
 		v_str = ''
 
@@ -314,7 +314,7 @@ def create_additional_v(experiment_directory, v_mode, v_dim,
 	train_data = get_noisy_data(train_data, v_dim)
 	save_created_data(train_data, 
 		experiment_directory=experiment_directory, 
-		filename='noisy_skew_train')
+		filename=f'noisy{v_dim}_skew_train')
 
 	# -- Get noisy valid data 
 	valid_data = pd.read_csv(
@@ -323,7 +323,7 @@ def create_additional_v(experiment_directory, v_mode, v_dim,
 	valid_data = get_noisy_data(valid_data, v_dim)
 	save_created_data(valid_data, 
 		experiment_directory=experiment_directory, 
-		filename='noisy_skew_valid')
+		filename=f'noisy{v_dim}_skew_valid')
 
 	# -- get noisy test data
 	pskew_list = [0.1, 0.3, 0.5, 0.7, 0.9, 0.95]
@@ -336,7 +336,7 @@ def create_additional_v(experiment_directory, v_mode, v_dim,
 		test_data = get_noisy_data(test_data, v_dim)
 		save_created_data(test_data, 
 			experiment_directory=experiment_directory, 
-			filename=f'noisy_{pskew}_test')
+			filename=f'noisy{v_dim}_{pskew}_test')
 
 		# --- fixed joint 0.9 
 		test_data = pd.read_csv(
@@ -346,7 +346,7 @@ def create_additional_v(experiment_directory, v_mode, v_dim,
 		test_data = get_noisy_data(test_data, v_dim)
 		save_created_data(test_data, 
 			experiment_directory=experiment_directory, 
-			filename=f'noisy_{pskew}_fj09_test')
+			filename=f'noisy{v_dim}_{pskew}_fj09_test')
 
 		# --- fixed joint 0.5 
 		test_data = pd.read_csv(
@@ -356,7 +356,7 @@ def create_additional_v(experiment_directory, v_mode, v_dim,
 		test_data = get_noisy_data(test_data, v_dim)
 		save_created_data(test_data, 
 			experiment_directory=experiment_directory, 
-			filename=f'noisy_{pskew}_fj05_test')
+			filename=f'noisy{v_dim}_{pskew}_fj05_test')
 
 
 def create_save_chexpert_lists(chexpert_data_dir, p_tr=.7, p_val=0.25,
@@ -479,7 +479,8 @@ def build_input_fns(chexpert_data_dir, v_mode, skew_train='False',
 	# --load splits
 	train_data, valid_data, shifted_data_dict = load_created_data(
 		chexpert_data_dir=chexpert_data_dir, random_seed=random_seed,
-		v_mode=v_mode, skew_train=skew_train, weighted=weighted)
+		v_mode=v_mode, v_dim=v_dim, skew_train=skew_train,
+		weighted=weighted)
 
 	# --this helps auto-set training steps at train time
 	train_data_size = len(train_data)
