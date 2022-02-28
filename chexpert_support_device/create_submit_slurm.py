@@ -136,6 +136,8 @@ def main(experiment_name,
 					checkpoint_dir,
 					slurm_save_dir,
 					model_to_tune,
+					v_mode, 
+					v_dim,
 					batch_size,
 					overwrite,
 					submit,
@@ -160,9 +162,8 @@ def main(experiment_name,
 	"""
 	if not os.path.exists(slurm_save_dir):
 		os.system(f'mkdir -p {slurm_save_dir}')
-
 	all_config = configurator.get_sweep(experiment_name, model_to_tune,
-		batch_size)
+		v_mode, v_dim, batch_size)
 	print(f'All configs are {len(all_config)}')
 	if not overwrite:
 		configs_to_consider = [
@@ -242,6 +243,16 @@ if __name__ == "__main__":
 
 	parser.add_argument('--batch_size', '-batch_size',
 		help="batch size",
+		type=int)
+
+	parser.add_argument('--v_mode', '-v_mode',
+		default='normal',
+		choices=['normal', 'noisy', 'corry'],
+		help="Mode for additional dimensions",
+		type=str)
+
+	parser.add_argument('--v_dim', '-v_dim',
+		help="dimension of additional Vs",
 		type=int)
 
 	parser.add_argument('--clean_directories', '-clean_directories',

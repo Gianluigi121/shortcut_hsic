@@ -19,7 +19,7 @@ import itertools
 from pathlib import Path
 
 
-def configure_hsic_model(skew_train, weighted, batch_size):
+def configure_hsic_model(skew_train, v_mode, v_dim, weighted, batch_size):
 	"""Creates hyperparameters for correlations experiment for SLABS model.
 
 	Returns:
@@ -37,7 +37,9 @@ def configure_hsic_model(skew_train, weighted, batch_size):
 		'weighted': [weighted],
 		"conditional_hsic": ['False'],
 		"skew_train": [skew_train],
-		'num_epochs': [50]
+		'num_epochs': [50], 
+		'v_mode':[v_mode], 
+		'v_dim': [v_dim]
 	}
 	print(param_dict)
 	param_dict_ordered = collections.OrderedDict(sorted(param_dict.items()))
@@ -74,7 +76,7 @@ def configure_baseline(skew_train, weighted, batch_size):
 	return sweep
 
 
-def get_sweep(experiment, model, batch_size):
+def get_sweep(experiment, model, v_mode, v_dim, batch_size):
 	"""Wrapper function, creates configurations based on experiment and model.
 
 	Args:
@@ -111,11 +113,13 @@ def get_sweep(experiment, model, batch_size):
 			batch_size=batch_size)
 
 	if model == 'unweighted_hsic':
-		return configure_hsic_model(skew_train=skew_train, weighted='False',
+		return configure_hsic_model(skew_train=skew_train, 
+			v_mode=v_mode, v_dim=v_dim, weighted='False',
 			batch_size=batch_size)
 
 	if model == 'weighted_hsic':
-		return configure_hsic_model(skew_train=skew_train, weighted='True',
+		return configure_hsic_model(skew_train=skew_train, 
+			v_mode=v_mode, v_dim=v_dim, weighted='True',
 			batch_size=batch_size)
 
 

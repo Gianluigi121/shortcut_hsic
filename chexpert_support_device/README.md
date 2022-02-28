@@ -53,6 +53,17 @@ python -m chexpert_support_device.create_submit_slurm \
 	--submit
 ```
 
+If running on MIT: 
+```bash
+python -m chexpert_support_device.create_submit_slurm \
+	--base_dir '/data/ddmg/scate/multiple_shortcut/chexpert/' \
+	--checkpoint_dir '/data/ddmg/scate/scratch' \
+	--slurm_save_dir '/data/ddmg/users/mmakar/projects/multiple_shortcut/shortcut_hsic/chexpert_slurm_scripts/' \
+	--model_to_tune 'weighted_hsic' \
+	--batch_size 64 
+```
+
+
 
 ## Tensorboard launch
 

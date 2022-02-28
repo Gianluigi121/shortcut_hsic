@@ -9,6 +9,10 @@ from shared.train_utils import restrict_GPU_tf
 
 FLAGS = flags.FLAGS
 flags.DEFINE_string('skew_train', 'False', 'train on skewed data?')
+flags.DEFINE_enum('v_mode', 'normal', 
+	['normal', 'noisy', 'corry'],
+	'create additional V dimensions? of which kind?')
+
 flags.DEFINE_float('p_tr', .7, 'proportion of data used for training.')
 flags.DEFINE_float('p_val', .25,
 	'proportion of training data used for validation.')
@@ -37,6 +41,7 @@ flags.DEFINE_float('l2_penalty', 0.0,
 flags.DEFINE_integer('embedding_dim', -1,
 										'Dimension for the final embedding.')
 flags.DEFINE_integer('random_seed', 0, 'random seed for tensorflow estimator')
+flags.DEFINE_integer('v_dim', 0, 'dimension of additional aux labels')
 flags.DEFINE_string('cleanup', 'False',
 		'remove tensorflow artifacts after training to reduce memory usage.')
 flags.DEFINE_string('gpuid', '0', 'Gpu id to run the model on.')
@@ -50,10 +55,12 @@ def main(argv):
 	def dataset_builder():
 		return data_builder.build_input_fns(
 			chexpert_data_dir=FLAGS.data_dir,
+			v_mode=FLAGS.v_mode,
 			skew_train=FLAGS.skew_train,
 			weighted=FLAGS.weighted,
 			p_tr=FLAGS.p_tr,
 			p_val=FLAGS.p_val,
+			v_dim=FLAGS.v_dim, 
 			random_seed=FLAGS.random_seed)
 
 	restrict_GPU_tf(FLAGS.gpuid, memfrac=0.9)

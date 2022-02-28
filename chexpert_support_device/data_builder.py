@@ -200,22 +200,33 @@ def get_skewed_data(cand_df, py1d=0.9, py2d=0.9, py00=0.7, rng=None):
 	return final_df
 
 def save_created_data(data_frame, experiment_directory, filename):
-	txt_df = f'{MAIN_DIR}/' + data_frame.Path + \
-		',' + data_frame.y0.astype(str) + \
-		',' + data_frame.y1.astype(str) + \
-		',' + data_frame.y2.astype(str)
+	D = data_frame.shape[1]
+
+	if 'Path' in data_frame.columns:
+		txt_df = f'{MAIN_DIR}/' + data_frame.Path
+	else: 
+		txt_df =  data_frame.file_name
+	for i in range(D-1):
+		txt_df = txt_df + ',' + data_frame[f'y{i}'].astype(str)
 
 	txt_df.to_csv(f'{experiment_directory}/{filename}.txt',
 		index=False)
 
 
-def load_created_data(chexpert_data_dir, random_seed, skew_train, weighted):
+def load_created_data(chexpert_data_dir, random_seed, v_mode, skew_train, weighted):
 	experiment_directory = f'{chexpert_data_dir}/experiment_data/rs{random_seed}'
 
 	skew_str = 'skew' if skew_train == 'True' else 'unskew'
 
+	if v_mode == 'noisy': 
+		v_str = 'noisy_'
+	elif v_mode == 'corry_':
+		v_str = 'corry'
+	else: 
+		v_str = ''
+
 	train_data = pd.read_csv(
-		f'{experiment_directory}/{skew_str}_train.txt')
+		f'{experiment_directory}/{v_str}{skew_str}_train.txt')
 
 	if weighted == 'True':
 		train_data = wt.get_simple_weights(train_data)
@@ -226,7 +237,7 @@ def load_created_data(chexpert_data_dir, random_seed, skew_train, weighted):
 	]
 
 	validation_data = pd.read_csv(
-		f'{experiment_directory}/{skew_str}_valid.txt')
+		f'{experiment_directory}/{v_str}{skew_str}_valid.txt')
 
 	if weighted == 'True':
 		validation_data = wt.get_simple_weights(validation_data)
@@ -241,7 +252,7 @@ def load_created_data(chexpert_data_dir, random_seed, skew_train, weighted):
 	varying_joint_test_data_dict = {}
 	for pskew in pskew_list:
 		test_data = pd.read_csv(
-			f'{experiment_directory}/{pskew}_test.txt'
+			f'{experiment_directory}/{v_str}{pskew}_test.txt'
 		).values.tolist()
 		test_data = [
 			tuple(test_data[i][0].split(',')) for i in range(len(test_data))
@@ -252,7 +263,7 @@ def load_created_data(chexpert_data_dir, random_seed, skew_train, weighted):
 	fixed_joint_skew_test_data_dict = {}
 	for pskew in pskew_list:
 		test_data = pd.read_csv(
-			f'{experiment_directory}/{pskew}_fj09_test.txt'
+			f'{experiment_directory}/{v_str}{pskew}_fj09_test.txt'
 		).values.tolist()
 		test_data = [
 			tuple(test_data[i][0].split(',')) for i in range(len(test_data))
@@ -263,7 +274,7 @@ def load_created_data(chexpert_data_dir, random_seed, skew_train, weighted):
 	fixed_joint_unskew_test_data_dict = {}
 	for pskew in pskew_list:
 		test_data = pd.read_csv(
-			f'{experiment_directory}/{pskew}_fj05_test.txt'
+			f'{experiment_directory}/{v_str}{pskew}_fj05_test.txt'
 		).values.tolist()
 		test_data = [
 			tuple(test_data[i][0].split(',')) for i in range(len(test_data))
@@ -277,6 +288,75 @@ def load_created_data(chexpert_data_dir, random_seed, skew_train, weighted):
 		'fixed_joint_0.5': fixed_joint_unskew_test_data_dict
 	}
 	return train_data, validation_data, test_data_dict
+
+def get_noisy_data(data, v_dim):
+	data = data['0'].str.split(",", expand=True)
+	N, D = data.shape 
+	data.columns = ['file_name'] +  [f'y{i}' for i in range(D - 1)]
+
+	for i in range(D-1): 
+		data[f'y{i}'] = data[f'y{i}'].astype(np.float32)
+
+	for i in range(D-1, D+v_dim-1):
+		data[f'y{i}'] = np.random.binomial(
+			n=1, p=0.5, size=(N, 1)).astype(np.float32)
+	return data
+	
+def create_additional_v(experiment_directory, v_mode, v_dim,
+	skew_train, weighted):
+
+	skew_str = 'skew' if skew_train == 'True' else 'unskew'
+
+	# -- Get noisy training data
+	train_data = pd.read_csv(
+		f'{experiment_directory}/{skew_str}_train.txt')
+
+	train_data = get_noisy_data(train_data, v_dim)
+	save_created_data(train_data, 
+		experiment_directory=experiment_directory, 
+		filename='noisy_skew_train')
+
+	# -- Get noisy valid data 
+	valid_data = pd.read_csv(
+		f'{experiment_directory}/{skew_str}_valid.txt')
+
+	valid_data = get_noisy_data(valid_data, v_dim)
+	save_created_data(valid_data, 
+		experiment_directory=experiment_directory, 
+		filename='noisy_skew_valid')
+
+	# -- get noisy test data
+	pskew_list = [0.1, 0.3, 0.5, 0.7, 0.9, 0.95]
+
+	for pskew in pskew_list:
+		# --- get the non-fixed joint data
+		test_data = pd.read_csv(
+			f'{experiment_directory}/{pskew}_test.txt')
+
+		test_data = get_noisy_data(test_data, v_dim)
+		save_created_data(test_data, 
+			experiment_directory=experiment_directory, 
+			filename=f'noisy_{pskew}_test')
+
+		# --- fixed joint 0.9 
+		test_data = pd.read_csv(
+			f'{experiment_directory}/{pskew}_fj09_test.txt'
+		)
+
+		test_data = get_noisy_data(test_data, v_dim)
+		save_created_data(test_data, 
+			experiment_directory=experiment_directory, 
+			filename=f'noisy_{pskew}_fj09_test')
+
+		# --- fixed joint 0.5 
+		test_data = pd.read_csv(
+			f'{experiment_directory}/{pskew}_fj05_test.txt'
+		)
+
+		test_data = get_noisy_data(test_data, v_dim)
+		save_created_data(test_data, 
+			experiment_directory=experiment_directory, 
+			filename=f'noisy_{pskew}_fj05_test')
 
 
 def create_save_chexpert_lists(chexpert_data_dir, p_tr=.7, p_val=0.25,
@@ -363,12 +443,13 @@ def create_save_chexpert_lists(chexpert_data_dir, p_tr=.7, p_val=0.25,
 			filename=f'{pskew}_fj05_test')
 
 
-def build_input_fns(chexpert_data_dir, skew_train='False',
-	weighted='False', p_tr=.7, p_val=0.25, random_seed=None):
+def build_input_fns(chexpert_data_dir, v_mode, skew_train='False',
+	weighted='False', p_tr=.7, p_val=0.25, v_dim=0, random_seed=None):
+	experiment_directory = f'{chexpert_data_dir}/experiment_data/rs{random_seed}'
 
 	# --- generate splits if they dont exist
 	if not os.path.exists(
-		f'{chexpert_data_dir}/experiment_data/rs{random_seed}/skew_train.txt'):
+		f'{experiment_directory}/skew_train.txt'):
 
 		create_save_chexpert_lists(
 			chexpert_data_dir=chexpert_data_dir,
@@ -376,10 +457,22 @@ def build_input_fns(chexpert_data_dir, skew_train='False',
 			p_val=p_val,
 			random_seed=random_seed)
 
+	if v_mode == 'noisy':
+		if not os.path.exists(
+			f'{experiment_directory}/noisy_skew_train.txt'):
+			create_additional_v(experiment_directory=experiment_directory, 
+				v_mode=v_mode, v_dim=v_dim,
+				skew_train=skew_train, weighted=weighted)
+
+	if v_mode == 'corry':
+		if not os.path.exists(
+			f'{experiment_directory}/corry_skew_train.txt'):
+			raise NotImplementedError("not implemented yet")
+
 	# --load splits
 	train_data, valid_data, shifted_data_dict = load_created_data(
 		chexpert_data_dir=chexpert_data_dir, random_seed=random_seed,
-		skew_train=skew_train, weighted=weighted)
+		v_mode=v_mode, skew_train=skew_train, weighted=weighted)
 
 	# --this helps auto-set training steps at train time
 	train_data_size = len(train_data)
