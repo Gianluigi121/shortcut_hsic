@@ -7,6 +7,7 @@ import pandas as pd
 import tensorflow as tf
 
 from chexpert_support_device import weighting as wt
+from chexpert_support_device import permutation_weighting as pw
 
 SOTO_MAIN_DIR = '/nfs/turbo/coe-soto'
 RBG_MAIN_DIR = '/nfs/turbo/coe-rbg'
@@ -220,7 +221,8 @@ def load_created_data(chexpert_data_dir, random_seed, skew_train, weighted):
 		f'{experiment_directory}/{skew_str}_train.txt')
 
 	if weighted == 'True':
-		train_data = wt.get_simple_weights(train_data)
+		# train_data = wt.get_simple_weights(train_data)
+		train_data = pw.get_pw_weights(train_data)
 
 	train_data = train_data.values.tolist()
 	train_data = [
@@ -231,7 +233,8 @@ def load_created_data(chexpert_data_dir, random_seed, skew_train, weighted):
 		f'{experiment_directory}/{skew_str}_valid.txt')
 
 	if weighted == 'True':
-		validation_data = wt.get_simple_weights(validation_data)
+		# validation_data = wt.get_simple_weights(validation_data)
+		validation_data = pw.get_pw_weights(validation_data)
 
 	validation_data = validation_data.values.tolist()
 	validation_data = [
