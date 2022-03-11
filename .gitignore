@@ -3,3 +3,5 @@
 *.txt
 train.py
 data/
+*.log
+*.csv
