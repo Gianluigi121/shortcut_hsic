@@ -1,0 +1,5 @@
+*.png
+*.sh
+*.txt
+train.py
+data/
