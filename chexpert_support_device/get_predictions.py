@@ -104,7 +104,7 @@ def get_pred(pskew, random_seed, fixed_joint, aux_joint_skew,
 def get_optimal_pred_for_random_seed(random_seed, pixel, batch_size,
 	fixed_joint, aux_joint_skew, model_name, xv_mode, experiment_name,
 	base_dir, **args):
-
+	raise NotImplementedError("need to update the predictions file for multi v")
 	# -- get the optimal model configs
 	optimal_configs = pd.read_csv(
 			(f'{base_dir}/final_models/optimal_config_{model_name}_{xv_mode}_{experiment_name}'

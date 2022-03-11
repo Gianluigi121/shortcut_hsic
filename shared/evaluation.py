@@ -57,21 +57,19 @@ def compute_loss_weighted(labels, logits, embedding, sample_weights, params):
 
 def hsic(x, y, sample_weights, sigma=1.0):
 	""" Computes the weighted HSIC between two arbitrary variables x, y"""
-
 	if len(x.shape) == 1:
-			x = tf.expand_dims(x, axis=-1)
+		x = tf.expand_dims(x, axis=-1)
 
 	if len(y.shape) == 1:
-			y = tf.expand_dims(y, axis=-1)
+		y = tf.expand_dims(y, axis=-1)
 
 	if sample_weights == None:
-			sample_weights = tf.ones((tf.shape(y)[0], 1))
+		sample_weights = tf.ones((tf.shape(y)[0], 1))
 
 	if len(sample_weights.shape) == 1:
-			sample_weights = tf.expand_dims(sample_weights, axis=-1)
+		sample_weights = tf.expand_dims(sample_weights, axis=-1)
 
 	sample_weights_T = tf.transpose(sample_weights)
-
 
 	kernel_fxx = tfp.math.psd_kernels.ExponentiatedQuadratic(
 			amplitude=1.0, length_scale=sigma)

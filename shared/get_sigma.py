@@ -46,9 +46,18 @@ def get_last_saved_model(estimator_dir):
 def get_data_chexpert(config, base_dir):
 	experiment_directory = f"{base_dir}/experiment_data/rs{config['random_seed']}"
 
-	_, valid_data, _ = chx.load_created_data(
-		chexpert_data_dir=base_dir, random_seed=config['random_seed'],
-		skew_train=config['skew_train'], weighted=config['weighted'])
+	if 'alg_step' not in config.keys():
+		_, valid_data, _ = chx.load_created_data(
+			chexpert_data_dir=base_dir, random_seed=config['random_seed'],
+			v_mode=config['v_mode'], v_dim=config['v_dim'], 
+			skew_train=config['skew_train'], weighted=config['weighted'],
+			alg_step='None')
+	else: 
+		_, valid_data, _ = chx.load_created_data(
+			chexpert_data_dir=base_dir, random_seed=config['random_seed'],
+			v_mode=config['v_mode'], v_dim=config['v_dim'], 
+			skew_train=config['skew_train'], weighted=config['weighted'],
+			alg_step=config['alg_step'])
 
 	map_to_image_label_given_pixel = functools.partial(chx.map_to_image_label,
 		pixel=config['pixel'], weighted=config['weighted'])

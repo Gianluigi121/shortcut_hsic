@@ -80,7 +80,6 @@ def model_fn(features, labels, mode, params):
 		loss = eval_pred_loss + params["alpha"] * eval_hsic
 
 		# -- additional eval metrics
-		# TODO add evaluation metrics
 		additional_eval_metrics = evaluation.get_eval_metrics_dict(labels,
 			predictions, sample_weights, params)
 
@@ -163,6 +162,7 @@ def train(exp_dir,
 		"conditional_hsic": conditional_hsic,
 		"l2_penalty": l2_penalty,
 		"embedding_dim": embedding_dim,
+		"n_classes": 1
 	}
 
 	if debugger == 'True':

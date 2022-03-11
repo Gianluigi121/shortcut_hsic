@@ -26,19 +26,19 @@ def configure_hsic_model(skew_train, v_mode, v_dim, weighted, batch_size):
 		Iterator with all hyperparameter combinations
 	"""
 	param_dict = {
-		'random_seed': [0],
+		'random_seed': [i for i in range(5)],
 		'pixel': [128],
 		'l2_penalty': [0.0],
 		'embedding_dim': [-1],
-		'sigma': [1.0, 5.0, 10.0],
+		'sigma': [1.0],
 		'alpha': [100.0, 1000.0, 10000.0, 100000.0, 1000000.0, 10000000.0],
 		"architecture": ["pretrained_densenet"],
 		"batch_size": [batch_size],
 		'weighted': [weighted],
 		"conditional_hsic": ['False'],
 		"skew_train": [skew_train],
-		'num_epochs': [50], 
-		'v_mode':[v_mode], 
+		'num_epochs': [50],
+		'v_mode':[v_mode],
 		'v_dim': [v_dim]
 	}
 	print(param_dict)
@@ -48,14 +48,14 @@ def configure_hsic_model(skew_train, v_mode, v_dim, weighted, batch_size):
 
 	return sweep
 
-def configure_baseline(skew_train, weighted, batch_size):
+def configure_baseline(skew_train,v_mode, v_dim, weighted, batch_size):
 	"""Creates hyperparameters for correlations experiment for SLABS model.
 
 	Returns:
 		Iterator with all hyperparameter combinations
 	"""
 	param_dict = {
-		'random_seed': [0],
+		'random_seed': [i for i in range(5)],
 		'pixel': [128],
 		'l2_penalty': [0.0, 0.0001, 0.001],
 		'embedding_dim': [-1],
@@ -68,6 +68,11 @@ def configure_baseline(skew_train, weighted, batch_size):
 		"skew_train": [skew_train],
 		'num_epochs': [50]
 	}
+
+	if v_mode != "normal":
+		param_dict['v_mode'] = [v_mode]
+		param_dict['v_dim'] = [v_dim]
+
 	print(param_dict)
 	param_dict_ordered = collections.OrderedDict(sorted(param_dict.items()))
 	keys, values = zip(*param_dict_ordered.items())
@@ -75,6 +80,30 @@ def configure_baseline(skew_train, weighted, batch_size):
 
 	return sweep
 
+
+def configure_first_step_model(skew_train, batch_size):
+	"""Creates hyperparameters for correlations experiment for SLABS model.
+
+	Returns:
+		Iterator with all hyperparameter combinations
+	"""
+	param_dict = {
+		'random_seed': [0],
+		'pixel': [128],
+		'l2_penalty': [0.0, 0.0001, 0.001],
+		'embedding_dim': [-1],
+		"architecture": ["pretrained_densenet"],
+		"batch_size": [batch_size],
+		"skew_train": [skew_train],
+		'num_epochs': [50],
+		"alg_step": ['first']
+	}
+	print(param_dict)
+	param_dict_ordered = collections.OrderedDict(sorted(param_dict.items()))
+	keys, values = zip(*param_dict_ordered.items())
+	sweep = [dict(zip(keys, v)) for v in itertools.product(*values)]
+
+	return sweep
 
 def get_sweep(experiment, model, v_mode, v_dim, batch_size):
 	"""Wrapper function, creates configurations based on experiment and model.
@@ -105,21 +134,29 @@ def get_sweep(experiment, model, v_mode, v_dim, batch_size):
 	skew_train = 'True' if experiment == 'skew_train' else 'False'
 
 	if model == 'unweighted_baseline':
-		return configure_baseline(skew_train=skew_train, weighted='False',
-			batch_size=batch_size)
+		return configure_baseline(skew_train=skew_train, v_mode=v_mode, v_dim=v_dim,
+		 weighted='False', batch_size=batch_size)
 
 	if model == 'weighted_baseline':
-		return configure_baseline(skew_train=skew_train, weighted='True',
+		return configure_baseline(skew_train=skew_train, 
+			v_mode=v_mode, v_dim=v_dim, weighted='True',
 			batch_size=batch_size)
 
 	if model == 'unweighted_hsic':
-		return configure_hsic_model(skew_train=skew_train, 
+		return configure_hsic_model(skew_train=skew_train,
 			v_mode=v_mode, v_dim=v_dim, weighted='False',
 			batch_size=batch_size)
 
 	if model == 'weighted_hsic':
-		return configure_hsic_model(skew_train=skew_train, 
+		return configure_hsic_model(skew_train=skew_train,
 			v_mode=v_mode, v_dim=v_dim, weighted='True',
 			batch_size=batch_size)
+
+	if model == 'first_step':
+		return configure_first_step_model(
+			skew_train=skew_train,
+			batch_size=batch_size)
+
+
 
 

@@ -5,6 +5,7 @@ from copy import deepcopy
 import numpy as np
 import pandas as pd
 import tensorflow as tf
+import pickle
 
 from chexpert_support_device import weighting as wt
 
@@ -32,13 +33,13 @@ def decode_number(label):
 
 def map_to_image_label(x, pixel, weighted):
 	chest_image = x[0]
-	y0 = x[1]
-	y1 = x[2]
-	y2 = x[3]
+	y_list = []
+	for i in range(1, x.shape[0]):
+		y_list.append(x[i])
 
 	if weighted == 'True':
-		sample_weights = x[4]
-
+		y_list.pop()
+		sample_weights = x[-1]
 	# decode images
 	img = read_decode_jpg(chest_image)
 
@@ -47,10 +48,8 @@ def map_to_image_label(x, pixel, weighted):
 	img = img / 255
 
 	# get the label vector
-	y0 = decode_number(y0)
-	y1 = decode_number(y1)
-	y2 = decode_number(y2)
-	labels = tf.concat([y0, y1, y2], axis=0)
+	y_list_dec = [decode_number(yi) for yi in y_list]
+	labels = tf.concat(y_list_dec, axis=0)
 
 	if weighted == 'True':
 		sample_weights = decode_number(sample_weights)
@@ -64,9 +63,10 @@ def map_to_image_label_test(x, pixel, weighted):
 	""" same as normal function by makes sure to not use
 	weighting. """
 	chest_image = x[0]
-	y0 = x[1]
-	y1 = x[2]
-	y2 = x[3]
+	y_list = []
+	for i in range(1, x.shape[0]):
+		y_list.append(x[i])
+
 
 	# decode images
 	img = read_decode_jpg(chest_image)
@@ -76,13 +76,11 @@ def map_to_image_label_test(x, pixel, weighted):
 	img = img / 255
 
 	# get the label vector
-	y0 = decode_number(y0)
-	y1 = decode_number(y1)
-	y2 = decode_number(y2)
-	labels = tf.concat([y0, y1, y2], axis=0)
+	y_list_dec = [decode_number(yi) for yi in y_list]
+	labels = tf.concat(y_list_dec, axis=0)
 
 	if weighted == 'True':
-		sample_weights = tf.ones_like(y0)
+		sample_weights = tf.ones_like(y_list_dec[0])
 	else:
 		sample_weights = None
 
@@ -204,7 +202,7 @@ def save_created_data(data_frame, experiment_directory, filename):
 
 	if 'Path' in data_frame.columns:
 		txt_df = f'{MAIN_DIR}/' + data_frame.Path
-	else: 
+	else:
 		txt_df =  data_frame.file_name
 	for i in range(D-1):
 		txt_df = txt_df + ',' + data_frame[f'y{i}'].astype(str)
@@ -213,29 +211,27 @@ def save_created_data(data_frame, experiment_directory, filename):
 		index=False)
 
 
-def load_created_data(chexpert_data_dir, random_seed, v_mode, v_dim, skew_train, weighted):
+def load_created_data(chexpert_data_dir, random_seed, v_mode, v_dim,
+	skew_train, weighted, alg_step):
 	experiment_directory = f'{chexpert_data_dir}/experiment_data/rs{random_seed}'
 
 	skew_str = 'skew' if skew_train == 'True' else 'unskew'
 
-	if v_mode == 'noisy': 
+	if v_mode == 'noisy':
 		v_str = f'noisy{v_dim}_'
 	elif v_mode == 'corry':
 		v_str = f'corry{v_dim}_'
-	else: 
+	else:
 		v_str = ''
 
 	train_data = pd.read_csv(
 		f'{experiment_directory}/{v_str}{skew_str}_train.txt')
-
 	if weighted == 'True':
 		train_data = wt.get_simple_weights(train_data)
-
 	train_data = train_data.values.tolist()
 	train_data = [
 		tuple(train_data[i][0].split(',')) for i in range(len(train_data))
 	]
-
 	validation_data = pd.read_csv(
 		f'{experiment_directory}/{v_str}{skew_str}_valid.txt')
 
@@ -246,6 +242,22 @@ def load_created_data(chexpert_data_dir, random_seed, v_mode, v_dim, skew_train,
 	validation_data = [
 		tuple(validation_data[i][0].split(',')) for i in range(len(validation_data))
 	]
+
+	if alg_step == 'first':
+		first_second_step_idx = pickle.load(
+			open(f'{experiment_directory}/first_second_step_idx.pkl', 'rb'))
+		train_idx = first_second_step_idx['first']['train_idx']
+		valid_idx = first_second_step_idx['first']['valid_idx']
+
+		validation_data = [train_data[i] for i in valid_idx]
+		train_data = [train_data[i] for i in train_idx]
+
+	elif alg_step == 'second':
+		first_second_step_idx = pickle.load(
+			open(f'{experiment_directory}/first_second_step_idx.pkl', 'rb'))
+		train_idx = first_second_step_idx['second']['train_idx']
+		train_data = [train_data[i] for i in train_idx]
+
 
 	pskew_list = [0.1, 0.3, 0.5, 0.7, 0.9, 0.95]
 
@@ -289,21 +301,44 @@ def load_created_data(chexpert_data_dir, random_seed, v_mode, v_dim, skew_train,
 	}
 	return train_data, validation_data, test_data_dict
 
-def get_noisy_data(data, v_dim):
-	data = data['0'].str.split(",", expand=True)
-	N, D = data.shape 
-	data.columns = ['file_name'] +  [f'y{i}' for i in range(D - 1)]
+def get_noisy_data(data, random_seed, v_dim, v_mode):
 
-	for i in range(D-1): 
+	if random_seed is None:
+		rng = np.random.RandomState(0)
+	else:
+		rng = np.random.RandomState(random_seed)
+
+	data = data['0'].str.split(",", expand=True)
+	N, D = data.shape
+	data.columns = ['file_name'] + [f'y{i}' for i in range(D - 1)]
+
+	for i in range(D - 1):
 		data[f'y{i}'] = data[f'y{i}'].astype(np.float32)
 
-	for i in range(D-1, D+v_dim-1):
-		data[f'y{i}'] = np.random.binomial(
-			n=1, p=0.5, size=(N, 1)).astype(np.float32)
+	if v_mode == 'noisy':
+		for i in range(D - 1, D + v_dim - 1):
+			data[f'y{i}'] = np.random.binomial(
+				n=1, p=0.5, size=(N, 1)).astype(np.float32)
+
+	elif v_mode == 'corry':
+		i = D - 1
+		p_main_corr_var = 0.9
+		data[f'y{i}'] = data['y0'] * rng.binomial(
+			n=1, p=p_main_corr_var, size=N).astype(np.float32)
+
+		data[f'y{i}'] = data[f'y{i}'] + (1.0 - data['y0']) * rng.binomial(
+			n=1, p=(1.0 - p_main_corr_var), size=N).astype(np.float32)
+
+		for i in range(D, D + v_dim - 1):
+			idx = rng.choice(N, size=int(0.01 * N), replace=False).tolist()
+			mask = np.array([False if i in idx else True for i in range(N)])
+			data[f'y{i}'] = mask * data[f'y{(D-1)}']  + (
+				1.0 - mask)* (1.0 - data[f'y{(D-1)}'])
 	return data
-	
-def create_additional_v(experiment_directory, v_mode, v_dim,
-	skew_train, weighted):
+
+
+def create_additional_v(experiment_directory, random_seed,
+	v_mode, v_dim, skew_train, weighted):
 
 	skew_str = 'skew' if skew_train == 'True' else 'unskew'
 
@@ -311,52 +346,60 @@ def create_additional_v(experiment_directory, v_mode, v_dim,
 	train_data = pd.read_csv(
 		f'{experiment_directory}/{skew_str}_train.txt')
 
-	train_data = get_noisy_data(train_data, v_dim)
-	save_created_data(train_data, 
-		experiment_directory=experiment_directory, 
-		filename=f'noisy{v_dim}_skew_train')
+	train_data = get_noisy_data(train_data, random_seed,
+		v_dim, v_mode)
+	save_created_data(train_data,
+		experiment_directory=experiment_directory,
+		filename=f'{v_mode}{v_dim}_{skew_str}_train')
 
-	# -- Get noisy valid data 
+	# -- Get noisy valid data
 	valid_data = pd.read_csv(
 		f'{experiment_directory}/{skew_str}_valid.txt')
 
-	valid_data = get_noisy_data(valid_data, v_dim)
-	save_created_data(valid_data, 
-		experiment_directory=experiment_directory, 
-		filename=f'noisy{v_dim}_skew_valid')
+	valid_data = get_noisy_data(valid_data, random_seed,
+		v_dim, v_mode)
+	save_created_data(valid_data,
+		experiment_directory=experiment_directory,
+		filename=f'{v_mode}{v_dim}_{skew_str}_valid')
 
-	# -- get noisy test data
-	pskew_list = [0.1, 0.3, 0.5, 0.7, 0.9, 0.95]
+	# -- get noisy test data (if not already created)
 
-	for pskew in pskew_list:
-		# --- get the non-fixed joint data
-		test_data = pd.read_csv(
-			f'{experiment_directory}/{pskew}_test.txt')
+	if not os.path.exists(
+			f'{experiment_directory}/{v_mode}{v_dim}_0.1_test.txt'):
+		pskew_list = [0.1, 0.3, 0.5, 0.7, 0.9, 0.95]
 
-		test_data = get_noisy_data(test_data, v_dim)
-		save_created_data(test_data, 
-			experiment_directory=experiment_directory, 
-			filename=f'noisy{v_dim}_{pskew}_test')
+		for pskew in pskew_list:
+			# --- get the non-fixed joint data
+			test_data = pd.read_csv(
+				f'{experiment_directory}/{pskew}_test.txt')
 
-		# --- fixed joint 0.9 
-		test_data = pd.read_csv(
-			f'{experiment_directory}/{pskew}_fj09_test.txt'
-		)
+			test_data = get_noisy_data(test_data, random_seed,
+				v_dim, v_mode)
+			save_created_data(test_data,
+				experiment_directory=experiment_directory,
+				filename=f'{v_mode}{v_dim}_{pskew}_test')
 
-		test_data = get_noisy_data(test_data, v_dim)
-		save_created_data(test_data, 
-			experiment_directory=experiment_directory, 
-			filename=f'noisy{v_dim}_{pskew}_fj09_test')
+			# --- fixed joint 0.9
+			test_data = pd.read_csv(
+				f'{experiment_directory}/{pskew}_fj09_test.txt'
+			)
 
-		# --- fixed joint 0.5 
-		test_data = pd.read_csv(
-			f'{experiment_directory}/{pskew}_fj05_test.txt'
-		)
+			test_data = get_noisy_data(test_data, random_seed,
+				v_dim, v_mode)
+			save_created_data(test_data,
+				experiment_directory=experiment_directory,
+				filename=f'{v_mode}{v_dim}_{pskew}_fj09_test')
 
-		test_data = get_noisy_data(test_data, v_dim)
-		save_created_data(test_data, 
-			experiment_directory=experiment_directory, 
-			filename=f'noisy{v_dim}_{pskew}_fj05_test')
+			# --- fixed joint 0.5
+			test_data = pd.read_csv(
+				f'{experiment_directory}/{pskew}_fj05_test.txt'
+			)
+
+			test_data = get_noisy_data(test_data, random_seed,
+				v_dim, v_mode)
+			save_created_data(test_data,
+				experiment_directory=experiment_directory,
+				filename=f'{v_mode}{v_dim}_{pskew}_fj05_test')
 
 
 def create_save_chexpert_lists(chexpert_data_dir, p_tr=.7, p_val=0.25,
@@ -449,9 +492,44 @@ def create_save_chexpert_lists(chexpert_data_dir, p_tr=.7, p_val=0.25,
 		save_created_data(ts_sk_df, experiment_directory=experiment_directory,
 			filename=f'{pskew}_fj05_test')
 
+def get_splits_for_alg(experiment_directory, skew_train, p_val):
+
+	skew_str = 'skew' if skew_train == 'True' else 'unskew'
+
+	train_data = pd.read_csv(
+		f'{experiment_directory}/{skew_str}_train.txt')
+
+	first_step_idx = np.random.choice(range(len(train_data)),
+		size = int(len(train_data)/2), replace=False).tolist()
+
+	second_step_idx = [
+		i for i in range(len(train_data)) if i not in first_step_idx
+	]
+
+	first_step_train_idx = np.random.choice(
+		first_step_idx, size = int(len(first_step_idx) * (1 - p_val)),
+		replace = False
+		).tolist()
+
+	first_step_valid_idx = [
+		i for i in first_step_idx if i not in first_step_train_idx
+	]
+
+	split_dict = {
+		'first': {
+			'train_idx': first_step_train_idx,
+			'valid_idx': first_step_valid_idx
+		},
+		'second': second_step_idx
+	}
+
+	pickle.dump(split_dict,
+		open(f'{experiment_directory}/first_second_step_idx.pkl', 'wb')
+		)
 
 def build_input_fns(chexpert_data_dir, v_mode, skew_train='False',
-	weighted='False', p_tr=.7, p_val=0.25, v_dim=0, random_seed=None):
+	weighted='False', p_tr=.7, p_val=0.25, v_dim=0, random_seed=None,
+	alg_step='None'):
 	experiment_directory = f'{chexpert_data_dir}/experiment_data/rs{random_seed}'
 
 	# --- generate splits if they dont exist
@@ -464,23 +542,32 @@ def build_input_fns(chexpert_data_dir, v_mode, skew_train='False',
 			p_val=p_val,
 			random_seed=random_seed)
 
+	skew_str = 'skew' if skew_train == 'True' else 'unskew'
 	if v_mode == 'noisy':
 		if not os.path.exists(
-			f'{experiment_directory}/noisy_skew_train.txt'):
-			create_additional_v(experiment_directory=experiment_directory, 
-				v_mode=v_mode, v_dim=v_dim,
+			f'{experiment_directory}/noisy{v_dim}_{skew_str}_train.txt'):
+			create_additional_v(experiment_directory=experiment_directory,
+				random_seed=random_seed, v_mode=v_mode, v_dim=v_dim,
 				skew_train=skew_train, weighted=weighted)
 
 	if v_mode == 'corry':
 		if not os.path.exists(
-			f'{experiment_directory}/corry_skew_train.txt'):
-			raise NotImplementedError("not implemented yet")
+			f'{experiment_directory}/corry{v_dim}_{skew_str}_train.txt'):
+			create_additional_v(experiment_directory=experiment_directory,
+				random_seed=random_seed, v_mode=v_mode, v_dim=v_dim,
+				skew_train=skew_train, weighted=weighted)
+
+	if alg_step != 'None':
+		if not os.path.exists(
+			f'{experiment_directory}/first_second_step_idx.pkl'):
+			get_splits_for_alg(experiment_directory=experiment_directory,
+				skew_train=skew_train, p_val=p_val)
 
 	# --load splits
 	train_data, valid_data, shifted_data_dict = load_created_data(
 		chexpert_data_dir=chexpert_data_dir, random_seed=random_seed,
 		v_mode=v_mode, v_dim=v_dim, skew_train=skew_train,
-		weighted=weighted)
+		weighted=weighted, alg_step=alg_step)
 
 	# --this helps auto-set training steps at train time
 	train_data_size = len(train_data)

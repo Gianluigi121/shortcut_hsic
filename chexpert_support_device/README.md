@@ -56,12 +56,31 @@ python -m chexpert_support_device.create_submit_slurm \
 If running on MIT: 
 ```bash
 python -m chexpert_support_device.create_submit_slurm \
+	--experiment_name 'skew_train' \
 	--base_dir '/data/ddmg/scate/multiple_shortcut/chexpert/' \
 	--checkpoint_dir '/data/ddmg/scate/scratch' \
 	--slurm_save_dir '/data/ddmg/users/mmakar/projects/multiple_shortcut/shortcut_hsic/chexpert_slurm_scripts/' \
-	--model_to_tune 'weighted_hsic' \
-	--batch_size 64 
+	--model_to_tune 'unweighted_baseline' \
+	--batch_size 64 \
+	--v_mode 'normal' \
+	--v_dim 0 \
+	--submit 
 ```
+
+If running on MIT (ahoy): 
+```bash
+python -m chexpert_support_device.runner \
+	--experiment_name 'skew_train' \
+	--base_dir '/data/ddmg/scate/multiple_shortcut/chexpert/' \
+	--checkpoint_dir '/data/ddmg/scate/scratch' \
+	--slurm_save_dir '/data/ddmg/users/mmakar/projects/multiple_shortcut/shortcut_hsic/chexpert_slurm_scripts/' \
+	--model_to_tune 'weighted_baseline' \
+	--batch_size 64 \
+	--v_mode 'corry' \
+	--v_dim 100 \
+	--submit 
+```
+
 
 
 
@@ -90,7 +109,23 @@ python -m chexpert_support_device.cross_validation \
 	--xv_method 'two_step' \
 	--batch_size 64 \
 	--num_workers 1 \
-	--t1_error 0.05
+	--t1_error 0.05 \
+	--v_mode 'normal'
+```
+
+If running on MIT
+
+```bash
+python -m chexpert_support_device.cross_validation \
+	--base_dir '/data/ddmg/scate/multiple_shortcut/chexpert/' \
+	--experiment_name 'skew_train' \
+	--model_to_tune 'weighted_baseline' \
+	--xv_method 'classic' \
+	--batch_size 64 \
+	--num_workers 1 \
+	--t1_error 0.05 \
+	--v_mode 'normal' \
+	--v_dim 0
 ```
 
 ## get predictions
@@ -107,5 +142,3 @@ python -m chexpert_support_device.get_predictions \
 	--aux_joint_skew 0.9 \
 	--get_optimal_only
 ```
-
-
