@@ -5,3 +5,6 @@ train.py
 data/
 *.log
 *.csv
+plot/
+logs/
+scripts/
