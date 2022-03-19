@@ -7,7 +7,7 @@ import pandas as pd
 import tensorflow as tf
 import pickle
 
-from chexpert_support_device import weighting as wt
+from shared import weighting as wt
 
 SOTO_MAIN_DIR = '/nfs/turbo/coe-soto'
 RBG_MAIN_DIR = '/nfs/turbo/coe-rbg'
@@ -227,7 +227,7 @@ def load_created_data(chexpert_data_dir, random_seed, v_mode, v_dim,
 	train_data = pd.read_csv(
 		f'{experiment_directory}/{v_str}{skew_str}_train.txt')
 	if weighted == 'True':
-		train_data = wt.get_simple_weights(train_data)
+		train_data = wt.get_binary_weights(train_data, 'chexpert')
 	train_data = train_data.values.tolist()
 	train_data = [
 		tuple(train_data[i][0].split(',')) for i in range(len(train_data))
@@ -236,7 +236,8 @@ def load_created_data(chexpert_data_dir, random_seed, v_mode, v_dim,
 		f'{experiment_directory}/{v_str}{skew_str}_valid.txt')
 
 	if weighted == 'True':
-		validation_data = wt.get_simple_weights(validation_data)
+		validation_data = wt.get_binary_weights(validation_data,
+			'chexpert')
 
 	validation_data = validation_data.values.tolist()
 	validation_data = [

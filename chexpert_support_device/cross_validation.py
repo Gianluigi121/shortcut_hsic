@@ -10,12 +10,15 @@ import shared.cross_validation as cv
 
 
 def main(base_dir, experiment_name, model_to_tune,
-	xv_method, batch_size, num_workers, t1_error, n_permute):
+	xv_method, v_mode, v_dim, batch_size, num_workers,
+	t1_error, n_permute):
 
 	if not os.path.exists(f'{base_dir}/final_models/'):
 		os.mkdir(f'{base_dir}/final_models/')
 
-	all_config = configurator.get_sweep(experiment_name, model_to_tune, batch_size)
+	all_config = configurator.get_sweep(
+		experiment_name, model_to_tune,
+		v_mode, v_dim, batch_size)
 	print(f'All configs are {len(all_config)}')
 	original_configs = len(all_config)
 
@@ -36,15 +39,31 @@ def main(base_dir, experiment_name, model_to_tune,
 		t1_error=t1_error,
 		n_permute=n_permute)
 
-	best_model_results.to_csv(
-		(f"{base_dir}/final_models/optimal_results_{model_to_tune}_{xv_method}_{experiment_name}"
-			f"_pix{all_config[0]['pixel']}_bs{all_config[0]['batch_size']}.csv"),
-		index=False)
+	if 'v_dim' in all_config[0].keys():
+		best_model_results.to_csv(
+			(f"{base_dir}/final_models/optimal_results_{model_to_tune}_{xv_method}"
+				f"_{experiment_name}_pix{all_config[0]['pixel']}_"
+				f"bs{all_config[0]['batch_size']}_vdim{all_config[0]['v_dim']}.csv"),
+			index=False)
 
-	best_model_configs.to_csv(
-		(f"{base_dir}/final_models/optimal_config_{model_to_tune}_{xv_method}_{experiment_name}"
-			f"_pix{all_config[0]['pixel']}_bs{all_config[0]['batch_size']}.csv"),
-		index=False)
+		best_model_configs.to_csv(
+			(f"{base_dir}/final_models/optimal_config_{model_to_tune}_{xv_method}"
+				f"_{experiment_name}_pix{all_config[0]['pixel']}_"
+				f"bs{all_config[0]['batch_size']}_vdim{all_config[0]['v_dim']}.csv"),
+			index=False)
+	else: 
+
+		best_model_results.to_csv(
+			(f"{base_dir}/final_models/optimal_results_{model_to_tune}_{xv_method}"
+				f"_{experiment_name}_pix{all_config[0]['pixel']}_"
+				f"bs{all_config[0]['batch_size']}.csv"),
+			index=False)
+
+		best_model_configs.to_csv(
+			(f"{base_dir}/final_models/optimal_config_{model_to_tune}_{xv_method}"
+				f"_{experiment_name}_pix{all_config[0]['pixel']}_"
+				f"bs{all_config[0]['batch_size']}.csv"),
+			index=False)
 
 if __name__ == "__main__":
 	implemented_models = open(
@@ -93,6 +112,15 @@ if __name__ == "__main__":
 		default=100,
 		type=int)
 
+	parser.add_argument('--v_mode', '-v_mode',
+		default='normal',
+		choices=['normal', 'noisy', 'corry'],
+		help="Mode for additional dimensions",
+		type=str)
+
+	parser.add_argument('--v_dim', '-v_dim',
+		help="dimension of additional Vs",
+		type=int)
 	args = vars(parser.parse_args())
 	main(**args)
 
