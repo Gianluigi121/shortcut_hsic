@@ -27,6 +27,7 @@ import tqdm
 tf.autograph.set_verbosity(0)
 
 import chexpert_support_device.data_builder as chx
+import waterbirds.data_builder as wb
 import shared.train_utils as utils
 from shared import evaluation
 
@@ -41,6 +42,30 @@ def get_last_saved_model(estimator_dir):
 	except:
 		print(estimator_dir)
 	return model
+
+
+def get_data_waterbirds(config, base_dir):
+	experiment_directory = (f"{base_dir}/experiment_data/rs{config['random_seed']}"
+		f"_v_dim{config['v_dim']}")
+	if 'alg_step' not in config.keys():
+		_, valid_data, _ = wb.load_created_data(
+			experiment_directory=experiment_directory, weighted=config['weighted'],
+			v_dim=config['v_dim'], alg_step='None')
+
+	else: 
+		raise NotImplementedError("need to implement this")
+		_, valid_data, _ = wb.load_created_data(
+			experiment_directory=experiment_directory, weighted=config['weighted'],
+			v_dim=config['v_dim'], alg_step=config['alg_step'])
+
+	map_to_image_label_given_pixel = functools.partial(wb.map_to_image_label,
+		pixel=config['pixel'], weighted=config['weighted'])
+
+	valid_dataset = tf.data.Dataset.from_tensor_slices(valid_data)
+	valid_dataset = valid_dataset.map(map_to_image_label_given_pixel, num_parallel_calls=1)
+	valid_dataset = valid_dataset.batch(config['batch_size'],
+		drop_remainder=False).repeat(1)
+	return valid_dataset
 
 
 def get_data_chexpert(config, base_dir):
@@ -70,8 +95,13 @@ def get_data_chexpert(config, base_dir):
 
 
 def get_optimal_sigma_for_run(config, base_dir, t1_error, n_permute=100):
+
+	# TODO: need to pass this as an argument 
 	# -- get the dataset
-	valid_dataset = get_data_chexpert(config, base_dir)
+	if 'chexpert' in base_dir:
+		valid_dataset = get_data_chexpert(config, base_dir)
+	else: 
+		valid_dataset = get_data_waterbirds(config, base_dir)
 
 	# -- model
 	hash_string = utils.config_hasher(config)

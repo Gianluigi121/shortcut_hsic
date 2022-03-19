@@ -1,6 +1,7 @@
 """ Script for cross validaiton """
 import os
 import pickle
+import numpy as np
 import pandas as pd
 import functools
 import multiprocessing
@@ -104,16 +105,33 @@ def get_optimal_model_two_step(configs, base_dir, hparams, t1_error,
 	all_results, available_configs = import_results(configs, num_workers, base_dir)
 	sigma_results = get_sigma.get_optimal_sigma(available_configs, t1_error=t1_error,
 		n_permute=n_permute, num_workers=num_workers, base_dir=base_dir)
+
+
+	most_sig = sigma_results.groupby('random_seed').significant.max()
+	most_sig = most_sig.to_frame()
+	most_sig.reset_index(inplace=True, drop=False)
+	most_sig.rename(columns={'significant': 'most_sig'}, inplace=True)
+
+	min_hsic = sigma_results.groupby('random_seed').hsic.min()
+	min_hsic = min_hsic.to_frame()
+	min_hsic.reset_index(inplace=True, drop=False)
+	min_hsic.rename(columns={'hsic': 'min_hsic'}, inplace=True)
+
+	sigma_results = sigma_results.merge(most_sig, on ='random_seed')
+	sigma_results = sigma_results.merge(min_hsic, on ='random_seed')
+
+	sigma_results['keep'] = np.where(sigma_results.significant==True, 
+		True, np.where(sigma_results.hsic==sigma_results.min_hsic, 
+			True, False))
+
 	print("this is sig res")
-	print(sigma_results.sort_values(['random_seed', 'sigma', 'alpha']))
+	print(sigma_results.sort_values(
+		['random_seed', 'sigma', 'alpha']))
 
-	if not sigma_results.significant.max():
-		sigma_results.significant[(sigma_results.hsic == sigma_results.hsic.min())] = True
+	sigma_results = sigma_results[(sigma_results.keep==True)].reset_index()
+	sigma_results = sigma_results[['random_seed', 'sigma', 'alpha']]
 
-	sigma_results = sigma_results[(sigma_results.significant==True)]
 	filtered_results = all_results.merge(sigma_results, on=['random_seed', 'sigma', 'alpha'])
-
-	filtered_results.drop(['significant'], inplace=True, axis=1)
 	filtered_results.reset_index(drop=True, inplace=True)
 
 	unique_filtered_results = filtered_results[['random_seed', 'sigma', 'alpha']].copy()
