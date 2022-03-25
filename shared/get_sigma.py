@@ -45,14 +45,16 @@ def get_last_saved_model(estimator_dir):
 
 
 def get_data_waterbirds(config, base_dir):
-	experiment_directory = (f"{base_dir}/experiment_data/rs{config['random_seed']}"
-		f"_v_dim{config['v_dim']}")
+	# experiment_directory = (f"{base_dir}/experiment_data/rs{config['random_seed']}"
+	# 	f"_v_dim{config['v_dim']}")
+	experiment_directory = f"{base_dir}/experiment_data/rs{config['random_seed']}"
+
 	if 'alg_step' not in config.keys():
 		_, valid_data, _ = wb.load_created_data(
 			experiment_directory=experiment_directory, weighted=config['weighted'],
 			v_dim=config['v_dim'], alg_step='None')
 
-	else: 
+	else:
 		raise NotImplementedError("need to implement this")
 		_, valid_data, _ = wb.load_created_data(
 			experiment_directory=experiment_directory, weighted=config['weighted'],
@@ -74,13 +76,13 @@ def get_data_chexpert(config, base_dir):
 	if 'alg_step' not in config.keys():
 		_, valid_data, _ = chx.load_created_data(
 			chexpert_data_dir=base_dir, random_seed=config['random_seed'],
-			v_mode=config['v_mode'], v_dim=config['v_dim'], 
+			v_mode=config['v_mode'], v_dim=config['v_dim'],
 			skew_train=config['skew_train'], weighted=config['weighted'],
 			alg_step='None')
-	else: 
+	else:
 		_, valid_data, _ = chx.load_created_data(
 			chexpert_data_dir=base_dir, random_seed=config['random_seed'],
-			v_mode=config['v_mode'], v_dim=config['v_dim'], 
+			v_mode=config['v_mode'], v_dim=config['v_dim'],
 			skew_train=config['skew_train'], weighted=config['weighted'],
 			alg_step=config['alg_step'])
 
@@ -96,11 +98,11 @@ def get_data_chexpert(config, base_dir):
 
 def get_optimal_sigma_for_run(config, base_dir, t1_error, n_permute=100):
 
-	# TODO: need to pass this as an argument 
+	# TODO: need to pass this as an argument
 	# -- get the dataset
 	if 'chexpert' in base_dir:
 		valid_dataset = get_data_chexpert(config, base_dir)
-	else: 
+	else:
 		valid_dataset = get_data_waterbirds(config, base_dir)
 
 	# -- model

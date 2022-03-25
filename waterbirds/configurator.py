@@ -30,14 +30,14 @@ def configure_hsic_model(v_dim, weighted, batch_size):
 		'pixel': [128],
 		'l2_penalty': [0.0],
 		'embedding_dim': [-1],
-		'sigma': [1.0, 10.0, 100.0, 1000.0],
+		'sigma': [10.0, 100.0, 1000.0],
 		'alpha': [1e3, 1e5, 1e7],
 		"architecture": ["pretrained_resnet"],
 		"batch_size": [batch_size],
 		'weighted': [weighted],
 		"conditional_hsic": ['False'],
-		'num_epochs': [1000],
-		'v_dim': [0, 5, 100]
+		'num_epochs': [500],
+		'v_dim': [v_dim]
 	}
 	print(param_dict)
 	param_dict_ordered = collections.OrderedDict(sorted(param_dict.items()))
@@ -61,6 +61,7 @@ def configure_baseline(v_dim, weighted, batch_size):
 		'random_seed': [i for i in range(5)],
 		'pixel': [128],
 		'l2_penalty': [0.0, 0.001, 0.0001],
+		# 'l2_penalty': [0.0],
 		'embedding_dim': [-1],
 		'sigma': [10.0],
 		'alpha': [0.0],
@@ -68,37 +69,14 @@ def configure_baseline(v_dim, weighted, batch_size):
 		"batch_size": [batch_size],
 		'weighted': [weighted],
 		"conditional_hsic": ['False'],
-		'num_epochs': [200],
-		'v_dim': [0, 5, 100]
+		'num_epochs': [500],
+		'v_dim': [v_dim]
 	}
 
 	print(param_dict)
 	param_dict_ordered = collections.OrderedDict(sorted(param_dict.items()))
 	keys, values = zip(*param_dict_ordered.items())
-	sweep0 = [dict(zip(keys, v)) for v in itertools.product(*values)]
-
-
-	param_dict = {
-		'random_seed': [i for i in range(5)],
-		'pixel': [128],
-		'l2_penalty': [0.0, 0.001, 0.0001],
-		'embedding_dim': [-1],
-		'sigma': [10.0],
-		'alpha': [0.0],
-		"architecture": ["pretrained_resnet"],
-		"batch_size": [batch_size],
-		'weighted': ['False'],
-		"conditional_hsic": ['False'],
-		'num_epochs': [200],
-		'v_dim': [0]
-	}
-
-	print(param_dict)
-	param_dict_ordered = collections.OrderedDict(sorted(param_dict.items()))
-	keys, values = zip(*param_dict_ordered.items())
-	sweep1 = [dict(zip(keys, v)) for v in itertools.product(*values)]
-
-	sweep = sweep0 + sweep1
+	sweep = [dict(zip(keys, v)) for v in itertools.product(*values)]
 
 	return sweep
 

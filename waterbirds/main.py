@@ -59,7 +59,6 @@ flags.DEFINE_string('debugger', 'False', 'debugger mode')
 def main(argv):
 
 	del argv
-
 	def dataset_builder():
 		return data_builder.build_input_fns(
 			data_dir=FLAGS.data_dir,

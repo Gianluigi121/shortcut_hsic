@@ -40,6 +40,7 @@ def get_binary_weights(data, data_type):
 			num =  py * pv
 			data['weights'] = mask * (num/denom) + (1 - mask) * data['weights']
 
+	print(data.weights.min(), data.weights.max(), data.weights.mean())
 	if data_type == 'chexpert':
 		txt_data = data.file_name
 

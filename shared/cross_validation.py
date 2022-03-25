@@ -37,6 +37,7 @@ def import_helper(config, base_dir):
 		logging.error('Couldnt find %s', performance_file)
 		return None
 
+	print(hash_dir)
 	results_dict = pickle.load(open(performance_file, 'rb'))
 	results_dict.update(config)
 
@@ -120,8 +121,8 @@ def get_optimal_model_two_step(configs, base_dir, hparams, t1_error,
 	sigma_results = sigma_results.merge(most_sig, on ='random_seed')
 	sigma_results = sigma_results.merge(min_hsic, on ='random_seed')
 
-	sigma_results['keep'] = np.where(sigma_results.significant==True, 
-		True, np.where(sigma_results.hsic==sigma_results.min_hsic, 
+	sigma_results['keep'] = np.where(sigma_results.significant==True,
+		True, np.where(sigma_results.hsic==sigma_results.min_hsic,
 			True, False))
 
 	print("this is sig res")

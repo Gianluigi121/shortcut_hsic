@@ -50,7 +50,7 @@ def main(base_dir, model_to_tune,
 				f"_pix{all_config[0]['pixel']}_"
 				f"bs{all_config[0]['batch_size']}_vdim{all_config[0]['v_dim']}.csv"),
 			index=False)
-	else: 
+	else:
 
 		best_model_results.to_csv(
 			(f"{base_dir}/final_models/optimal_results_{model_to_tune}_{xv_method}"

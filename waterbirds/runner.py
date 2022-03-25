@@ -32,6 +32,7 @@ from waterbirds import configurator
 
 HOST = socket.gethostname()
 
+# AVAILABLE_GPUS = ['3']
 AVAILABLE_GPUS = ['0', '1', '2', '3']
 
 NUM_GPUS = len(AVAILABLE_GPUS)
@@ -148,12 +149,13 @@ def main(base_dir,
 	all_config = configurator.get_sweep(model_to_tune,
 		 v_dim, batch_size)
 	print(f'All configs are {len(all_config)}')
+
 	if not overwrite:
 		configs_to_consider = [
 			not utils.tried_config(config, base_dir=base_dir) for config in all_config
 		]
 		all_config = list(itertools.compress(all_config, configs_to_consider))
-
+	
 	print(f'Remaining configs are {len(all_config)}')
 
 	# all_config = all_config[:1]

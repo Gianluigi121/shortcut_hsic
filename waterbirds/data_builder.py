@@ -248,6 +248,7 @@ def save_created_data(data_frame, experiment_directory, filename):
 
 
 def extract_dim(data, v_dim):
+	print(v_dim)
 	data = data['0'].str.split(",", expand=True)
 	data.columns = ['bird_img', 'bird_seg', 'back_img', 'noise_img'] + \
 		[f'y{i}' for i in range(data.shape[1]-4)]
@@ -278,6 +279,7 @@ def load_created_data(experiment_directory, weighted, v_dim,
 	train_data = pd.read_csv(
 		f'{experiment_directory}/train.txt')
 
+	print("######## train ############")
 	train_data = extract_dim(train_data, v_dim)
 
 	if weighted == 'True':
@@ -290,6 +292,8 @@ def load_created_data(experiment_directory, weighted, v_dim,
 	]
 	validation_data = pd.read_csv(
 		f'{experiment_directory}/valid.txt')
+
+	print("######## valid ############")
 
 	validation_data = extract_dim(validation_data, v_dim)
 
@@ -425,56 +429,61 @@ def create_save_waterbird_lists(experiment_directory, v_dim,
 
 
 	# -- generate the relevant aux labels
+	sim_rng = np.random.RandomState(0)
+
 	N = df.shape[0]
-	g = rng.binomial(n=1, p=0.3, size=(N, 1))
+	g = sim_rng.binomial(n=1, p=0.3, size=(N, 1))
 
 	D1 = 2
-	u = g * rng.normal(1, 1, size=(N,D1)) + \
-    (1.0 - g) * rng.normal(-1, 1, size=(N,D1))
+	u = g * sim_rng.normal(1, 0.5, size=(N,D1)) + \
+    (1.0 - g) * sim_rng.normal(-1, 0.5, size=(N,D1))
 
-	coef_uy1 = rng.normal(0.5, 0.1, size=(D1, 1))
-	coef_uy2 = rng.normal(0.5, 0.1, size=(D1, 1))
+	coef_uy1 = sim_rng.normal(1, 0.1, size=(D1, 1))
+	coef_uy2 = sim_rng.normal(1, 0.1, size=(D1, 1))
 
 	y1 = (sigmoid(np.dot(u, coef_uy1)) > 0.5) * 1.0
-	y1_flip_idx =rng.choice(
+	y1_flip_idx =sim_rng.choice(
     range(N), size=(int(0.05 * N)), replace =False).tolist()
 	y1[y1_flip_idx] = 1.0 - y1[y1_flip_idx]
 
 	y2 = (sigmoid(np.dot(u, coef_uy2)) > 0.5) * 1.0
-	y2_flip_idx =rng.choice(
+	y2_flip_idx =sim_rng.choice(
     range(N), size=(int(0.05 * N)), replace =False).tolist()
 	y2[y2_flip_idx] = 1.0 - y2[y2_flip_idx]
 
 	# ---- create redundant aux labels
-	if v_dim >0:
-		y_other = rng.binomial(1, 1.0/v_dim, size=(N, v_dim))
-	else:
-		y_other = np.zeros(shape=(N, 1))
+	# if D2 >0:
+	# 5, 0.3
+	# 10, 0.1
+	D2 = 10
+	y_other = sim_rng.binomial(1, 0.1, size=(N, D2))
+	# else:
+	# 	y_other = np.zeros(shape=(N, 1))
 
 	# --- create final label
-	coef_uy0 = rng.normal(1, 0.1, (u.shape[1], 1))
-	coef_uyother = rng.normal(-1, 0.1, (y_other.shape[1], 1))
+	coef_uy0 = sim_rng.normal(1, 0.1, (u.shape[1], 1))
+	coef_uyother = sim_rng.normal(-0.5, 1, (y_other.shape[1], 1))
 
 	y0 = np.dot(u, coef_uy0)
-	if v_dim > 0:
-		y0 = y0 + np.dot(y_other, coef_uyother)
+	# if D2 > 0:
+	y0 = y0 + np.dot(y_other, coef_uyother)
 	y0 = (sigmoid(y0) > 0.5)*1.0
 
 	# --- merge the created label data with the bird data
-	if v_dim > 0:
-		label_df = pd.DataFrame(y_other)
-		label_df.columns = [f'y{i}' for i in range(3, v_dim+3)]
-		label_df['y0'] = y0
-		label_df['y1'] = y1
-		label_df['y2'] = y2
-	else:
-		label_df = pd.DataFrame({
-			'y0': y0[:, 0],
-			'y1': y1[:, 0],
-			'y2': y2[:, 0]
-			})
+	# if D2 > 0:
+	label_df = pd.DataFrame(y_other)
+	label_df.columns = [f'y{i}' for i in range(3, D2+3)]
+	label_df['y0'] = y0
+	label_df['y1'] = y1
+	label_df['y2'] = y2
+	# else:
+	# 	label_df = pd.DataFrame({
+	# 		'y0': y0[:, 0],
+	# 		'y1': y1[:, 0],
+	# 		'y2': y2[:, 0]
+	# 		})
 
-	print(label_df.head())
+	print(label_df[['y1', 'y2', 'y0']].groupby(['y1', 'y2']).agg(["mean", "count"]).reset_index())
 	label_df['idx'] = label_df.groupby(['y0']).cumcount()
 	df['idx'] = df.groupby(['y0']).cumcount()
 	df = df.merge(label_df, on = ['idx', 'y0'])
@@ -483,6 +492,7 @@ def create_save_waterbird_lists(experiment_directory, v_dim,
 
 	df = df[['img_filename'] + [f'y{i}' for i in range(df.shape[1] - 1)]]
 	df.reset_index(inplace =True, drop=True)
+
 	# ---- generate noise images
 	df = create_noise_patches(experiment_directory, df, rng)
 
@@ -576,7 +586,7 @@ def build_input_fns(data_dir, weighted='False', p_tr=.7, p_val = 0.25,
  v_dim=0, clean_back='False', random_seed=None, alg_step='None'):
 
 	experiment_directory = (f'{data_dir}/experiment_data/'
-		f'rs{random_seed}_v_dim{v_dim}')
+		f'rs{random_seed}')
 
 	# --- generate splits if they dont exist
 	if not os.path.exists(f'{experiment_directory}/train.txt'):
