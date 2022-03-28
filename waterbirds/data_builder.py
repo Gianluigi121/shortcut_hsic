@@ -45,6 +45,16 @@ WATERBIRD_LIST = [
 	'Merganser', 'Guillemot', 'Pacific_Loon'
 ]
 
+# water
+# 'Albatross', 'Auklet',
+# Fulmar Kittiwake
+
+# land
+# yellow_throated_vireo
+# goldfinch
+
+
+
 def read_decode_jpg(file_path):
 	img = tf.io.read_file(file_path)
 	img = tf.image.decode_jpeg(img, channels=3)
@@ -417,16 +427,30 @@ def create_save_waterbird_lists(experiment_directory, v_dim,
 	df.reset_index(inplace=True, drop=True)
 
 	if EASY_DATA:
-		df = df[((
-			df.img_filename.str.contains('Gull')) | (
-			df.img_filename.str.contains('Warbler')
-		))]
+		# df = df[((
+		# 	df.img_filename.str.contains('Gull')) | (
+		# 	df.img_filename.str.contains('Warbler')
+		# ))]
+		df['bird_name'] = df.img_filename.str.split("/", expand=True)[0].str.split(".", expand=True)[1].str.lower()
+		df = df[(
+			(df.bird_name.str.contains('gull')) |
+			(df.bird_name.str.contains('warbler')) |
+			(df.bird_name.str.contains('vireo')) |
+			(df.bird_name.str.contains('common_yellowthroat')) |
+			(df.bird_name.str.contains('american_redstart')) |
+			(df.bird_name.str.contains('ovenbird')) |
+			(df.bird_name.str.contains('yellow_breasted_chat')) |
+			(df.bird_name.str.contains('northern_waterthrush')) |
+			(df.bird_name.str.contains('louisiana_waterthrush')) |
+			(df.bird_name.str.contains('albatross')) |
+			(df.bird_name.str.contains('auklet'))
+			)]
 
+		df.drop('bird_name', axis=1, inplace=True)
 		df.reset_index(inplace=True, drop=True)
 
 	# -- get bird type
 	df['y0'] = df.apply(get_bird_type, axis=1)
-
 
 	# -- generate the relevant aux labels
 	sim_rng = np.random.RandomState(0)
@@ -461,7 +485,7 @@ def create_save_waterbird_lists(experiment_directory, v_dim,
 	# 	y_other = np.zeros(shape=(N, 1))
 
 	# --- create final label
-	coef_uy0 = sim_rng.normal(1, 0.1, (u.shape[1], 1))
+	coef_uy0 = sim_rng.normal(0.5, 0.1, (u.shape[1], 1))
 	coef_uyother = sim_rng.normal(-0.5, 1, (y_other.shape[1], 1))
 
 	y0 = np.dot(u, coef_uy0)
