@@ -10,8 +10,8 @@ from shared.train_utils import restrict_GPU_tf
 
 FLAGS = flags.FLAGS
 flags.DEFINE_string('weighted', 'False', 'use weighting?.')
-flags.DEFINE_float('p_tr', .7, 'proportion of data used for training.')
-flags.DEFINE_float('p_val', .25,
+flags.DEFINE_float('p_tr', .6, 'proportion of data used for training.')
+flags.DEFINE_float('p_val', .3,
 	'proportion of training data used for validation.')
 flags.DEFINE_integer('v_dim', 0,
 	'dimension of additional aux labels')
