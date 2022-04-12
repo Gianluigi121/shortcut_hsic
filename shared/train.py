@@ -147,7 +147,7 @@ def train(exp_dir,
 	train_utils.cleanup_directory(checkpoint_dir)
 
 	input_fns = dataset_builder()
-	train_data_size, train_input_fn, valid_input_fn, eval_input_fn_creater = input_fns
+	train_data_size, train_input_fn, valid_input_fn, final_valid_input_fn, eval_input_fn_creater = input_fns
 	steps_per_epoch = int(train_data_size / batch_size)
 
 	params = {
@@ -193,7 +193,7 @@ def train(exp_dir,
 
 	est.train(train_input_fn, steps=training_steps)
 
-	validation_results = est.evaluate(valid_input_fn)
+	validation_results = est.evaluate(final_valid_input_fn)
 	results = {"validation": validation_results}
 
 	# ---- non-asymmetric analysis

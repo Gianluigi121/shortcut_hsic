@@ -377,11 +377,6 @@ def create_noise_patches(experiment_directory, df, group, rng):
 			)
 	df['noise_img'] = f'{experiment_directory}/noise_imgs/{group}/no_noise.png'
 
-	# y2_noise = df.y2.copy()
-	# y2_noise_flip_idx = 	rng.choice(
-	# 	range(N), size=(int(0.01 * N)), replace =False).tolist()
-	# y2_noise[y2_noise_flip_idx] = 1.0 - y2_noise[y2_noise_flip_idx]
-	# df['y2_noise'] =
 	for i in range(df.shape[0]):
 		if df.y2[i] == 1:
 			# create random pixel "flips"
@@ -417,32 +412,138 @@ def create_noise_patches(experiment_directory, df, group, rng):
 
 
 def get_simulated_labels(df, random_seed, py0, ideal, sim_rng, rng):
+	if random_seed ==9:
+		coef_uy1_mean = 1
+		coef_uy2_mean = 1
+		coef_uy1_var = 0,1 # check
+		coef_uy2_var = 0,1 # check
+		coef_uy0_mean = 0.5
+		u_mean = 1
+		u_var = 1
+		flip_some = True
+
+	if random_seed == 10:
+		coef_uy1_mean = 1
+		coef_uy2_mean = 1
+		coef_uy1_var = 0,1 # check
+		coef_uy2_var = 0,1 # check
+		coef_uy0_mean = 0.1
+		u_mean = 1
+		u_var = 1
+		flip_some = True
+
+	if random_seed == 11:
+		coef_uy1_mean = 0.5
+		coef_uy2_mean = 0.5
+		coef_uy1_var = 0,1 # check
+		coef_uy2_var = 0,1 # check
+		coef_uy0_mean = 0.5
+		u_mean = 1
+		u_var = 1
+		flip_some = True
+
+	if random_seed == 12:
+		coef_uy1_mean = 0.1
+		coef_uy2_mean = 0.1
+		coef_uy1_var = 1 # check
+		coef_uy2_var = 1 # check
+		coef_uy0_mean = 1
+		u_mean = 1
+		u_var = 0.5
+		flip_some = False
+		coef_uy0 = np.array([[0.94786385],
+      [1.05862429]])
+
+
+	if random_seed == 13:
+		# coef_uy0 = sim_rng.normal(0.5, 0.1, (u.shape[1], 1))
+		coef_uy1_mean = 0.1
+		coef_uy2_mean = 0.1
+		coef_uy1_var = 1 # check
+		coef_uy2_var = 1 # check
+		coef_uy0_mean = 1
+		u_mean = 1
+		u_var = 0.5
+		flip_some = False
+		coef_uy0 = np.array([[0.44786385],
+			[0.55862429]])
+
+	if random_seed == 14:
+		# coef_uy0 = sim_rng.normal(0.5, 0.1, (u.shape[1], 1))
+		coef_uy1_mean = 0.1
+		coef_uy2_mean = 0.1
+		coef_uy1_var = 1 # check
+		coef_uy2_var = 1 # check
+		coef_uy0_mean = 1
+		u_mean = 1
+		u_var = 0.5
+		flip_some = False
+		coef_uy0 = np.array([[0.04786385],
+			[0.15862429]])
+
 
 	N = df.shape[0]
-	y1 = sim_rng.binomial(1, 0.5, (N, 1))
-	y2 = y1.copy()
-	y2_flip_idx = sim_rng.choice(
-		range(N), size=(int(0.3 * N)), replace =False).tolist()
-	y2[y2_flip_idx] = 1.0 - y2[y2_flip_idx]
+	g = sim_rng.binomial(n=1, p=0.3, size=(N, 1))
+
+	D1 = 2
+
+	u = g * sim_rng.normal(u_mean, u_var, size=(N,D1)) + \
+    (1.0 - g) * sim_rng.normal(-u_mean, u_var, size=(N,D1))
+
+	# coef_uy1 = sim_rng.normal(coef_uy1_mean, coef_uy1_var, size=(D1, 1))
+	# coef_uy2 = sim_rng.normal(coef_uy2_mean, coef_uy2_var, size=(D1, 1))
+	coef_uy1 = np.array([[1.09618734],
+      [1.92322671]])
+	coef_uy2 = np.array([[-1.15304124],
+      [ 2.44728818]])
+
+
+	y1 = (sigmoid(np.dot(u, coef_uy1)) > 0.5) * 1.0
+	if flip_some:
+		y1_flip_idx =sim_rng.choice(
+	    range(N), size=(int(0.05 * N)), replace =False).tolist()
+		y1[y1_flip_idx] = 1.0 - y1[y1_flip_idx]
+
+	y2 = (sigmoid(np.dot(u, coef_uy2)) > 0.5) * 1.0
+	if flip_some:
+		y2_flip_idx =sim_rng.choice(
+	    range(N), size=(int(0.05 * N)), replace =False).tolist()
+		y2[y2_flip_idx] = 1.0 - y2[y2_flip_idx]
 
 	if ideal:
 		y1 = sim_rng.binomial(1, 0.5, (N, 1))
 		y2 = sim_rng.binomial(1, 0.5, (N, 1))
-
-	# --- create redundant aux labels
+	# ---- create redundant aux labels
+	# if D2 >0:
+	# 5, 0.3
+	# 10, 0.1
 	D2 = 10
-	y_other = sim_rng.binomial(1, 0.01, size=(N, D2))
+	y_other = sim_rng.binomial(1, 0.1, size=(N, D2))
+	# else:
+	# 	y_other = np.zeros(shape=(N, 1))
 
 	# --- create final label
-	coef_uy0 = np.array([[0.84], [0.4]])
-	coef_uyother = sim_rng.normal(0, 1, (y_other.shape[1], 1))
 
-	y0 = -0.84 + np.dot(np.hstack([y1, y2]), coef_uy0) + np.dot(y_other,
-		coef_uyother)
-	y0 = y0 + sim_rng.normal(0, 0.5, (N, 1))
-	y0 = (sigmoid(y0) > 0.5) * 1.0
+	# coef_uy0 = sim_rng.normal(coef_uy0_mean, 0.1, (D1, 1))
+	# coef_uyother = sim_rng.normal(0, 1, (D2, 1))
+	coef_uyother = np.array([[ 0.00936659],
+      [-0.73921836],
+      [-0.87324424],
+      [ 2.10304018],
+      [ 1.78717815],
+      [-2.1541521 ],
+      [-0.19979325],
+      [ 0.06905702],
+      [ 0.18769221],
+      [-1.49708214]])
+
+	y0 = np.dot(u, coef_uy0)
+	# if D2 > 0:
+	y0 = y0 + np.dot(y_other, coef_uyother)
+	y0 = (sigmoid(y0) > 0.5)*1.0
 	if ideal:
 		y0 = sim_rng.binomial(1, py0, size= (N, 1))
+
 	# --- merge the created label data with the bird data
 	label_df = pd.DataFrame(y_other)
 	label_df.columns = [f'y{i}' for i in range(3, D2+3)]
@@ -450,15 +551,15 @@ def get_simulated_labels(df, random_seed, py0, ideal, sim_rng, rng):
 	label_df['y1'] = y1
 	label_df['y2'] = y2
 
-	print(label_df[['y1', 'y2', 'y0']].groupby(['y1', 'y2']).agg(
-		["mean", "count"]).reset_index())
+	print(label_df[['y1', 'y2', 'y0']].groupby(['y1', 'y2']).agg(["mean", "count"]).reset_index())
 	label_df['idx'] = label_df.groupby(['y0']).cumcount()
 	df['idx'] = df.groupby(['y0']).cumcount()
 	df = df.merge(label_df, on = ['idx', 'y0'])
 	df.drop('idx', axis=1, inplace=True)
 
+
 	df = df[['img_filename'] + [f'y{i}' for i in range(df.shape[1] - 1)]]
-	df.reset_index(inplace=True, drop=True)
+	df.reset_index(inplace =True, drop=True)
 	return df
 
 
@@ -654,8 +755,8 @@ def build_input_fns(data_dir, weighted='False', p_tr=.7, p_val = 0.25,
 
 		dataset = tf.data.Dataset.from_tensor_slices(train_data)
 		dataset = dataset.map(map_to_image_label_given_pixel, num_parallel_calls=1)
-		# dataset = dataset.shuffle(int(1e5), seed=random_seed).batch(batch_size).repeat(num_epochs)
-		dataset = dataset.batch(batch_size).repeat(num_epochs)
+		dataset = dataset.shuffle(int(1e5), seed=random_seed).batch(batch_size).repeat(num_epochs)
+		# dataset = dataset.batch(batch_size).repeat(num_epochs)
 		return dataset
 
 	# Build an iterator over validation batches
@@ -668,18 +769,6 @@ def build_input_fns(data_dir, weighted='False', p_tr=.7, p_val = 0.25,
 		valid_dataset = valid_dataset.map(map_to_image_label_given_pixel,
 			num_parallel_calls=1)
 		valid_dataset = valid_dataset.batch(batch_size, drop_remainder=True).repeat(1)
-		return valid_dataset
-
-
-	# build an iterator over whole validation dataset
-	def final_valid_input_fn(params):
-		map_to_image_label_given_pixel = functools.partial(map_to_image_label,
-			pixel=params['pixel'], weighted=params['weighted'])
-		batch_size = params['batch_size']
-		valid_dataset = tf.data.Dataset.from_tensor_slices(valid_data)
-		valid_dataset = valid_dataset.map(map_to_image_label_given_pixel,
-			num_parallel_calls=1)
-		valid_dataset = valid_dataset.batch(int(1e5)).repeat(1)
 		return valid_dataset
 
 	# Build an iterator over the heldout set (shifted distribution).
@@ -699,4 +788,4 @@ def build_input_fns(data_dir, weighted='False', p_tr=.7, p_val = 0.25,
 			return eval_shift_dataset
 		return eval_input_fn
 
-	return training_data_size, train_input_fn, valid_input_fn, final_valid_input_fn, eval_input_fn_creater
+	return training_data_size, train_input_fn, valid_input_fn, eval_input_fn_creater

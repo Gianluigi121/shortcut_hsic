@@ -87,6 +87,7 @@ def runner(config, base_dir, checkpoint_dir, slurm_save_dir, overwrite,
 		os.remove(f'{slurm_save_dir}/{hash_string}.sbatch')
 	f = open(f'{slurm_save_dir}/{hash_string}.sbatch', 'x')
 	f.write('#!/bin/bash\n')
+	f.write('#SBATCH -w, --nodelist=tig-slurm-2\n')
 	f.write('#SBATCH --time=10:00:00\n')
 	f.write('#SBATCH --cpus-per-task=5\n')
 	f.write('#SBATCH --nodes=1\n')
@@ -102,7 +103,8 @@ def runner(config, base_dir, checkpoint_dir, slurm_save_dir, overwrite,
 		# f.write('#SBATCH -w, --nodelist=armis28004\n')
 	if HOST == 'TIG':
 		f.write('#SBATCH --partition=gpu\n')
-	f.write('#SBATCH --mem-per-gpu=20000m\n')
+	# f.write('#SBATCH --mem-per-gpu=20000m\n')
+	f.write('#SBATCH --mem=40000m\n')
 	# first check if there is any room on nfs
 	f.write(f'''nfs_amount_used=$(df {MAIN_DIR}'''
 		''' | awk '{printf sub(/%.*/, "")}')\n'''

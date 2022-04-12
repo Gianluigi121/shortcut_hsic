@@ -32,8 +32,8 @@ from waterbirds import configurator
 
 HOST = socket.gethostname()
 
-# AVAILABLE_GPUS = ['3']
-AVAILABLE_GPUS = ['0', '1', '2', '3']
+# AVAILABLE_GPUS = ['7', '6', '5']
+AVAILABLE_GPUS = ['1', '2', '3']
 
 NUM_GPUS = len(AVAILABLE_GPUS)
 PROC_PER_GPU = 1

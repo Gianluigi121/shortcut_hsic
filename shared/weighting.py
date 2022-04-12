@@ -24,7 +24,6 @@ def get_binary_weights(data, data_type):
 	all_y_vals = data[[f'y{i}' for i in range(D)]]
 	all_y_vals.drop_duplicates(inplace=True)
 	all_y_vals = all_y_vals.values
-
 	# --- compute weights
 	for i in range(all_y_vals.shape[0]):
 		mask = data[[f'y{i}' for i in range(D)]] == all_y_vals[i,:]
@@ -40,7 +39,7 @@ def get_binary_weights(data, data_type):
 			num =  py * pv
 			data['weights'] = mask * (num/denom) + (1 - mask) * data['weights']
 
-	print(data.weights.min(), data.weights.max(), data.weights.mean())
+	print(data.weights.min(), data.weights.max(), data.weights.mean(), data.weights.var())
 	if data_type == 'chexpert':
 		txt_data = data.file_name
 

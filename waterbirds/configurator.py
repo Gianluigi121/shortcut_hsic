@@ -26,7 +26,7 @@ def configure_hsic_model(v_dim, weighted, batch_size):
 		Iterator with all hyperparameter combinations
 	"""
 	param_dict = {
-		'random_seed': [i for i in range(5)],
+		'random_seed': [15],
 		'pixel': [128],
 		'l2_penalty': [0.0],
 		'embedding_dim': [-1],
@@ -36,8 +36,8 @@ def configure_hsic_model(v_dim, weighted, batch_size):
 		"batch_size": [batch_size],
 		'weighted': [weighted],
 		"conditional_hsic": ['False'],
-		'num_epochs': [500],
-		'v_dim': [v_dim]
+		'num_epochs': [1000],
+		'v_dim': [0, 10]
 	}
 	print(param_dict)
 	param_dict_ordered = collections.OrderedDict(sorted(param_dict.items()))
@@ -58,10 +58,11 @@ def configure_baseline(v_dim, weighted, batch_size):
 		v_dim = 0
 
 	param_dict = {
-		'random_seed': [i for i in range(5)],
+		# 'random_seed': [9, 10, 11],
+		'random_seed': [15],
 		'pixel': [128],
-		'l2_penalty': [0.0, 0.001, 0.0001],
-		# 'l2_penalty': [0.0],
+		'l2_penalty': [0.0, 0.0001, 0.001],
+		# 'l2_penalty': [0.001],
 		'embedding_dim': [-1],
 		'sigma': [10.0],
 		'alpha': [0.0],
@@ -88,13 +89,13 @@ def configure_first_step_model(batch_size):
 		Iterator with all hyperparameter combinations
 	"""
 	param_dict = {
-		'random_seed': [0],
+		'random_seed': [5],
 		'pixel': [128],
 		'l2_penalty': [0.0, 0.0001, 0.001],
 		'embedding_dim': [-1],
 		"architecture": ["pretrained_resnet"],
 		"batch_size": [batch_size],
-		'num_epochs': [200],
+		'num_epochs': [500],
 		"alg_step": ['first']
 	}
 	print(param_dict)

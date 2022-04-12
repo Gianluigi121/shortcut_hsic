@@ -5,6 +5,8 @@
 import tensorflow as tf
 from tensorflow.keras.applications.densenet import DenseNet121
 from tensorflow.keras.applications.resnet50 import ResNet50
+from tensorflow.keras import initializers
+
 
 def create_architecture(params):
 	if (params['architecture'] == 'pretrained_densenet'):
@@ -17,6 +19,8 @@ def create_architecture(params):
 			embedding_dim=params["embedding_dim"],
 			l2_penalty=params["l2_penalty"], 
 			n_classes=params['n_classes'])
+	elif (params['architecture'] == 'simple_conv'):
+		net = SimpleConvolutionNet(l2_penalty=params["l2_penalty"])
 
 	else:
 		raise NotImplementedError(
@@ -87,3 +91,34 @@ class PretrainedResNet50(tf.keras.Model):
 			x = self.embedding(x)
 		return self.dense(x), x
 
+class SimpleConvolutionNet(tf.keras.Model):
+	"""Simple architecture with convolutions + max pooling."""
+
+	def __init__(self, l2_penalty=0.0):
+		super(SimpleConvolutionNet, self).__init__()
+		# self.scale = preprocessing.Rescaling(1.0 / 255)
+		self.conv1 = tf.keras.layers.Conv2D(32, 3, activation="relu", kernel_initializer="zeros")
+		self.conv2 = tf.keras.layers.Conv2D(64, 3, activation="relu",  kernel_initializer="zeros")
+		self.maxpool1 = tf.keras.layers.MaxPooling2D(pool_size=(2, 2))
+		# self.dropout = tf.keras.layers.Dropout(dropout_rate)
+
+		self.flatten1 = tf.keras.layers.Flatten()
+		self.dense1 = tf.keras.layers.Dense(
+			1000,
+			activation="relu",
+			kernel_regularizer=tf.keras.regularizers.L2(l2=l2_penalty),
+			kernel_initializer=initializers.Zeros(), 
+			bias_initializer=initializers.Zeros(),
+			name="Z")
+		self.dense2 = tf.keras.layers.Dense(1, kernel_initializer=initializers.Zeros(), 
+			bias_initializer=initializers.Zeros())
+
+	def call(self, inputs, training=False):
+		z = self.conv1(inputs)
+		z = self.conv2(z)
+		z = self.maxpool1(z)
+		# if training:
+		# 	z = self.dropout(z, training=training)
+		z = self.flatten1(z)
+		z = self.dense1(z)
+		return self.dense2(z), z

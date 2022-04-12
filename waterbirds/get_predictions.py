@@ -23,14 +23,14 @@ import shared.train_utils as utils
 from pathlib import Path
 
 
-def get_test_data(config, base_dir):
+def get_test_data(config, shift_string, base_dir):
 		"""Function to get the data."""
 		experiment_directory = (
 			f"{base_dir}/experiment_data/rs{config['random_seed']}")
 
 
 		test_data = pd.read_csv(
-			f'{experiment_directory}/test_same.txt'
+			f'{experiment_directory}/test_{shift_string}.txt'
 			).values.tolist()
 
 		test_data = [
@@ -59,7 +59,7 @@ def get_last_saved_model(estimator_dir):
 				print(estimator_dir)
 		return model
 
-def get_pred(random_seed, hash_string, base_dir):
+def get_pred(random_seed, hash_string, shift_string, base_dir):
 	hash_dir = os.path.join(base_dir, 'tuning', hash_string, 'saved_model')
 	model = get_last_saved_model(hash_dir)
 
@@ -68,6 +68,7 @@ def get_pred(random_seed, hash_string, base_dir):
 
 	test_dataset = get_test_data(
 		config=config,
+		shift_string=shift_string, 
 		base_dir=base_dir
 	)
 
@@ -139,9 +140,14 @@ def get_optimal_pred_for_random_seed(random_seed, pixel, batch_size,
 	]
 	optimal_hash_string = optimal_configs[(optimal_configs.random_seed ==random_seed)]['hash'].tolist()[0]
 
+	all_predictions = []
+	for shift_string in ['same', 'shift']:
+		pred_df = get_pred(random_seed, optimal_hash_string, shift_string, base_dir)
+		pred_df['model'] = f'{model_name}_{xv_mode}'
+		pred_df['dist'] = shift_string
+		all_predictions.append(pred_df)
 
-	all_predictions = get_pred(random_seed, optimal_hash_string, base_dir)
-	all_predictions['model'] = f'{model_name}_{xv_mode}'
+	all_predictions = pd.concat(all_predictions, ignore_index=True)
 	all_predictions.to_csv(
 		(f'{base_dir}/final_models/opt_pred_rs{random_seed}_{model_name}_{xv_mode}'
 			f'_pix{pixel}_bs{batch_size}_vdim{v_dim}.csv'),
