@@ -121,6 +121,44 @@ def get_optimal_model_two_step(configs, base_dir, hparams, t1_error,
 	sigma_results = sigma_results.merge(most_sig, on ='random_seed')
 	sigma_results = sigma_results.merge(min_hsic, on ='random_seed')
 
+	print(sigma_results.sort_values(['random_seed', 'sigma', 'alpha']))
+
+	filtered_results = all_results.merge(sigma_results, on=['random_seed', 'sigma', 'alpha'])
+
+	filtered_results = filtered_results[
+		(((filtered_results.significant >= t1_error) &  (filtered_results.most_sig >= t1_error)) | \
+		((filtered_results.most_sig < t1_error) &  (filtered_results.hsic == filtered_results.min_hsic)))
+		]
+	print(filtered_results[
+		['random_seed', 'sigma', 'alpha', 'hsic', 'significant', 'most_sig', 'min_hsic']].sort_values(['random_seed', 'sigma', 'alpha']))
+
+	filtered_results.drop(['significant', 'most_sig'], inplace=True, axis=1)
+	filtered_results.reset_index(drop=True, inplace=True)
+
+
+	return get_optimal_model_classic(None, filtered_results, base_dir, hparams, num_workers)
+
+
+def get_optimal_model_two_step_new(configs, base_dir, hparams, t1_error,
+	n_permute, num_workers):
+	all_results, available_configs = import_results(configs, num_workers, base_dir)
+	sigma_results = get_sigma.get_optimal_sigma(available_configs, t1_error=t1_error,
+		n_permute=n_permute, num_workers=num_workers, base_dir=base_dir)
+
+
+	most_sig = sigma_results.groupby('random_seed').significant.max()
+	most_sig = most_sig.to_frame()
+	most_sig.reset_index(inplace=True, drop=False)
+	most_sig.rename(columns={'significant': 'most_sig'}, inplace=True)
+
+	min_hsic = sigma_results.groupby('random_seed').hsic.min()
+	min_hsic = min_hsic.to_frame()
+	min_hsic.reset_index(inplace=True, drop=False)
+	min_hsic.rename(columns={'hsic': 'min_hsic'}, inplace=True)
+
+	sigma_results = sigma_results.merge(most_sig, on ='random_seed')
+	sigma_results = sigma_results.merge(min_hsic, on ='random_seed')
+
 	sigma_results['keep'] = np.where(sigma_results.significant==True,
 		True, np.where(sigma_results.hsic==sigma_results.min_hsic,
 			True, False))
@@ -152,10 +190,17 @@ def get_optimal_model_classic(configs, filtered_results, base_dir, hparams, num_
 	else:
 		all_results = filtered_results.copy()
 
+	# all_results.drop('validation_pred_loss', axis=1, inplace=True)
+	# all_results.rename(columns={'validation_auc': 'validation_pred_loss'},
+	# 	inplace=True)
+
+	
 	columns_to_keep = hparams + ['random_seed', 'validation_pred_loss']
+
 	best_loss = all_results[columns_to_keep]
-	print(print(best_loss.sort_values(['random_seed', 'sigma', 'alpha'])))
+	print(best_loss.sort_values(['random_seed', 'validation_pred_loss']))
 	best_loss = best_loss.groupby('random_seed').validation_pred_loss.min()
+	# best_loss = best_loss.groupby('random_seed').validation_pred_loss.max()
 	best_loss = best_loss.to_frame()
 	best_loss.reset_index(drop=False, inplace=True)
 	best_loss.rename(columns={'validation_pred_loss': 'min_validation_pred_loss'},
@@ -166,12 +211,23 @@ def get_optimal_model_classic(configs, filtered_results, base_dir, hparams, num_
 		(all_results.validation_pred_loss == all_results.min_validation_pred_loss)
 	]
 
-	print(all_results[['random_seed', 'sigma', 'alpha', 'l2_penalty']])
+	temp = all_results[[
+	'random_seed', 'sigma', 'alpha', 'l2_penalty',
+	'shift_0.5_pred_loss', 'shift_0.5_auc','shift_0.9_pred_loss', 'shift_0.9_auc'
+	]]
+
+	temp.rename(columns={
+		'shift_0.5_pred_loss': 'shift_loss',
+		'shift_0.5_auc':'shift_auc', 
+		'shift_0.9_pred_loss': 'same_loss',
+		'shift_0.9_auc':'same_auc', 
+		}, inplace=True)
+
+	print(temp.sort_values('random_seed'))
 
 	optimal_configs = all_results[['random_seed', 'hash']]
-
 	# --- get the final results over all runs
-	mean_results = all_results.mean(axis=0).to_frame()
+	mean_results = all_results.median(axis=0).to_frame()
 	mean_results.rename(columns={0: 'mean'}, inplace=True)
 	std_results = all_results.std(axis=0).to_frame()
 	std_results.rename(columns={0: 'std'}, inplace=True)

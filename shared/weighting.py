@@ -1,8 +1,9 @@
 """weighting methods."""
 import numpy as np
 import pandas as pd
+pd.options.mode.chained_assignment = None
 
-def get_binary_weights(data, data_type):
+def get_binary_weights(data, data_type, weighting_type):
 	# --- load data
 	data = data['0'].str.split(",", expand=True)
 	
@@ -36,10 +37,14 @@ def get_binary_weights(data, data_type):
 			pv = data[[f'y{i}' for i in range(1, D)]] == all_y_vals[i, 1:]
 			pv = pv.min(axis=1)
 			pv = np.mean(pv)
-			num =  py * pv
+			if weighting_type == "tr_consistent":
+				num =  py * pv
+			else: 
+				num = pv 
 			data['weights'] = mask * (num/denom) + (1 - mask) * data['weights']
 
-	print(data.weights.min(), data.weights.max(), data.weights.mean(), data.weights.var())
+	# print(data.weights.isnull().sum())
+	# print(data.weights.min(), data.weights.max(), data.weights.mean(), data.weights.var())
 	if data_type == 'chexpert':
 		txt_data = data.file_name
 

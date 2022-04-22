@@ -83,7 +83,7 @@ def map_to_image_label(x, pixel, weighted):
 	for i in range(4, x.shape[0]):
 		y_list.append(x[i])
 
-	if weighted == 'True':
+	if ((weighted == 'True') or (weighted == 'True_bal')):
 		y_list.pop()
 		sample_weights = x[-1]
 
@@ -124,7 +124,7 @@ def map_to_image_label(x, pixel, weighted):
 	y_list_dec = [decode_number(yi) for yi in y_list]
 	labels = tf.concat(y_list_dec, axis=0)
 
-	if weighted == 'True':
+	if ((weighted == 'True') or (weighted == 'True_bal')):
 		sample_weights = decode_number(sample_weights)
 	else:
 		sample_weights = None
@@ -184,7 +184,7 @@ def map_to_image_label_test(x, pixel, weighted):
 	y_list_dec = [decode_number(yi) for yi in y_list]
 	labels = tf.concat(y_list_dec, axis=0)
 
-	if weighted == 'True':
+	if ((weighted == 'True') or (weighted == 'True_bal')):
 		sample_weights = tf.ones_like(y_list_dec[0])
 	else:
 		sample_weights = None
@@ -258,7 +258,6 @@ def save_created_data(data_frame, experiment_directory, filename):
 
 
 def extract_dim(data, v_dim):
-	print(v_dim)
 	data = data['0'].str.split(",", expand=True)
 	data.columns = ['bird_img', 'bird_seg', 'back_img', 'noise_img'] + \
 		[f'y{i}' for i in range(data.shape[1]-4)]
@@ -291,12 +290,14 @@ def load_created_data(experiment_directory, weighted, v_dim,
 	train_data = pd.read_csv(
 		f'{experiment_directory}/train.txt')
 
-	print("######## train ############")
 	train_data = extract_dim(train_data, v_dim)
 
 	if weighted == 'True':
 		train_data = wt.get_binary_weights(train_data,
-			'waterbirds')
+			'waterbirds', 'tr_consistent')
+	elif weighted == 'True_bal':
+		train_data = wt.get_binary_weights(train_data,
+			'waterbirds', 'bal')
 
 	train_data = train_data.values.tolist()
 	train_data = [
@@ -305,13 +306,14 @@ def load_created_data(experiment_directory, weighted, v_dim,
 	validation_data = pd.read_csv(
 		f'{experiment_directory}/valid.txt')
 
-	print("######## valid ############")
-
 	validation_data = extract_dim(validation_data, v_dim)
 
 	if weighted == 'True':
 		validation_data = wt.get_binary_weights(validation_data,
-			'waterbirds')
+			'waterbirds', 'tr_consistent')
+	elif weighted == 'True_bal':
+		validation_data = wt.get_binary_weights(validation_data,
+			'waterbirds', 'tr_consistent')
 
 	validation_data = validation_data.values.tolist()
 	validation_data = [
@@ -354,7 +356,6 @@ def load_created_data(experiment_directory, weighted, v_dim,
 
 	test_shift_data = extract_dim(test_shift_data, v_dim)
 	test_shift_data = test_shift_data.values.tolist()
-	print("here")
 	test_shift_data = [
 		tuple(test_shift_data[i][0].split(',')) for i in range(len(test_shift_data))
 	]
@@ -421,28 +422,28 @@ def get_simulated_labels(df, random_seed, py0, ideal, sim_rng, rng):
 	N = df.shape[0]
 	y1 = sim_rng.binomial(1, 0.5, (N, 1))
 	y2 = y1.copy()
-	y2_flip_idx = sim_rng.choice(
+	y2_flip_idx = rng.choice(
 		range(N), size=(int(0.3 * N)), replace =False).tolist()
 	y2[y2_flip_idx] = 1.0 - y2[y2_flip_idx]
 
 	if ideal:
-		y1 = sim_rng.binomial(1, 0.5, (N, 1))
-		y2 = sim_rng.binomial(1, 0.5, (N, 1))
+		y1 = rng.binomial(1, 0.5, (N, 1))
+		y2 = rng.binomial(1, 0.5, (N, 1))
 
 	# --- create redundant aux labels
 	D2 = 10
-	y_other = sim_rng.binomial(1, 0.01, size=(N, D2))
+	y_other = rng.binomial(1, 0.01, size=(N, D2))
 
 	# --- create final label
 	coef_uy0 = np.array([[0.84], [0.4]])
-	coef_uyother = sim_rng.normal(0, 1, (y_other.shape[1], 1))
+	coef_uyother = rng.normal(0, 1, (y_other.shape[1], 1))
 
 	y0 = -0.84 + np.dot(np.hstack([y1, y2]), coef_uy0) + np.dot(y_other,
 		coef_uyother)
-	y0 = y0 + sim_rng.normal(0, 0.5, (N, 1))
+	y0 = y0 + rng.normal(0, 0.5, (N, 1))
 	y0 = (sigmoid(y0) > 0.5) * 1.0
 	if ideal:
-		y0 = sim_rng.binomial(1, py0, size= (N, 1))
+		y0 = rng.binomial(1, py0, size= (N, 1))
 	# --- merge the created label data with the bird data
 	label_df = pd.DataFrame(y_other)
 	label_df.columns = [f'y{i}' for i in range(3, D2+3)]

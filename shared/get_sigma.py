@@ -31,7 +31,6 @@ import waterbirds.data_builder as wb
 import shared.train_utils as utils
 from shared import evaluation
 
-
 def get_last_saved_model(estimator_dir):
 	subdirs = [x for x in Path(estimator_dir).iterdir()
 		if x.is_dir() and 'temp' not in str(x)]
@@ -44,7 +43,36 @@ def get_last_saved_model(estimator_dir):
 	return model
 
 
-def get_data_waterbirds(config, base_dir):
+
+def get_data_waterbirds(config, base_dir, n_permute):
+	# experiment_directory = (f"{base_dir}/experiment_data/rs{config['random_seed']}"
+	# 	f"_v_dim{config['v_dim']}")
+	experiment_directory = f"{base_dir}/experiment_data/rs{config['random_seed']}"
+
+	if 'alg_step' not in config.keys():
+		_, valid_data, _ = wb.load_created_data(
+			experiment_directory=experiment_directory, weighted=config['weighted'],
+			v_dim=config['v_dim'], alg_step='None')
+
+	else:
+		raise NotImplementedError("need to implement this")
+		_, valid_data, _ = wb.load_created_data(
+			experiment_directory=experiment_directory, weighted=config['weighted'],
+			v_dim=config['v_dim'], alg_step=config['alg_step'])
+
+	map_to_image_label_given_pixel = functools.partial(wb.map_to_image_label,
+		pixel=config['pixel'], weighted=config['weighted'])
+
+	valid_dataset = tf.data.Dataset.from_tensor_slices(valid_data)
+	valid_dataset = valid_dataset.map(map_to_image_label_given_pixel, num_parallel_calls=1)
+	batch_size = int(len(valid_data) / n_permute)
+	valid_dataset = valid_dataset.batch(batch_size,
+		drop_remainder=True).repeat(1)
+	return valid_dataset
+
+
+
+def get_data_waterbirds_new(config, base_dir):
 	# experiment_directory = (f"{base_dir}/experiment_data/rs{config['random_seed']}"
 	# 	f"_v_dim{config['v_dim']}")
 	experiment_directory = f"{base_dir}/experiment_data/rs{config['random_seed']}"
@@ -95,8 +123,51 @@ def get_data_chexpert(config, base_dir):
 		drop_remainder=False).repeat(1)
 	return valid_dataset
 
+def get_optimal_sigma_for_run(config, base_dir, t1_error, n_permute=3):
 
-def get_optimal_sigma_for_run(config, base_dir, t1_error, n_permute=100):
+	# TODO: need to pass this as an argument
+	# -- get the dataset
+	if 'chexpert' in base_dir:
+		raise NotImplementedError("not yet")
+		valid_dataset = get_data_chexpert(config, base_dir)
+	else:
+		valid_dataset = get_data_waterbirds(config, base_dir, n_permute)
+
+	# -- model
+	hash_string = utils.config_hasher(config)
+	hash_dir = os.path.join(base_dir, 'tuning', hash_string, 'saved_model')
+	model = get_last_saved_model(hash_dir)
+
+	metric_values = []
+	# ---compute hsic over folds
+	for batch_id, examples in enumerate(valid_dataset):
+		# print(f'{batch_id} / {n_permute}')
+		x, labels_weights = examples
+		sample_weights = labels_weights['sample_weights']
+		labels = labels_weights['labels']
+		zpred = model(tf.convert_to_tensor(x))['embedding']
+		hsic_val = evaluation.hsic(
+			x=zpred, y=labels[:, 1:],
+			sample_weights=sample_weights,
+			sigma=config['sigma'])[[0]].numpy()
+		metric_values.append(hsic_val)
+
+	metric_values = np.hstack(metric_values)
+	curr_results = pd.DataFrame({
+		'random_seed': config['random_seed'],
+		'alpha': config['alpha'],
+		'sigma': config['sigma'],
+		'hsic': hsic_val,
+		'significant': stats.ttest_1samp(metric_values, 0.0)[1]
+		# 'significant': stats.wilcoxon(metric_values)[1]
+	}, index=[0])
+	if (np.mean(metric_values) == 0.0 and np.var(metric_values) == 0.0):
+		curr_results['significant'] = 1
+
+	return curr_results
+
+
+def get_optimal_sigma_for_run_new(config, base_dir, t1_error, n_permute=100):
 
 	# TODO: need to pass this as an argument
 	# -- get the dataset
@@ -115,7 +186,7 @@ def get_optimal_sigma_for_run(config, base_dir, t1_error, n_permute=100):
 	labels_list = []
 	sample_weights_list = []
 	for batch_id, examples in enumerate(valid_dataset):
-		# print(f'{batch_id} / {kfolds}')
+		# print(f'{batch_id} / {n_permute}')
 		x, labels_weights = examples
 		sample_weights = labels_weights['sample_weights']
 		sample_weights_list.append(sample_weights)
@@ -154,7 +225,6 @@ def get_optimal_sigma_for_run(config, base_dir, t1_error, n_permute=100):
 		perm_hsic_val, axis=0)
 
 	thresh = np.quantile(perm_hsic_val, 1-t1_error)
-	# accept_null = np.around(hsic_val, decimals=4) <= np.around(thresh, decimals=4)
 	accept_null = hsic_val <= thresh
 	print(config['sigma'], config['alpha'], hsic_val, thresh, accept_null[0])
 
