@@ -5,6 +5,7 @@
 import tensorflow as tf
 from tensorflow.keras.applications.densenet import DenseNet121
 from tensorflow.keras.applications.resnet50 import ResNet50
+from tensorflow.keras.applications.inception_v3 import InceptionV3
 from tensorflow.keras import initializers
 
 
@@ -12,12 +13,17 @@ def create_architecture(params):
 	if (params['architecture'] == 'pretrained_densenet'):
 		net = PretrainedDenseNet121(
 			embedding_dim=params["embedding_dim"],
-			l2_penalty=params["l2_penalty"], 
+			l2_penalty=params["l2_penalty"],
 			n_classes=params['n_classes'])
 	elif (params['architecture'] == 'pretrained_resnet'):
 		net = PretrainedResNet50(
 			embedding_dim=params["embedding_dim"],
-			l2_penalty=params["l2_penalty"], 
+			l2_penalty=params["l2_penalty"],
+			n_classes=params['n_classes'])
+	elif (params['architecture'] == 'pretrained_inception'):
+		net = PretrainedInceptionv3(
+			embedding_dim=params["embedding_dim"],
+			l2_penalty=params["l2_penalty"],
 			n_classes=params['n_classes'])
 	elif (params['architecture'] == 'simple_conv'):
 		net = SimpleConvolutionNet(l2_penalty=params["l2_penalty"])
@@ -91,6 +97,42 @@ class PretrainedResNet50(tf.keras.Model):
 			x = self.embedding(x)
 		return self.dense(x), x
 
+
+class PretrainedInceptionv3(tf.keras.Model):
+	"""Simple architecture with convolutions + max pooling."""
+
+	def __init__(self, embedding_dim=-1, l2_penalty=0.0,
+		l2_penalty_last_only=False, n_classes=1):
+		super(PretrainedInceptionv3, self).__init__()
+		self.embedding_dim = embedding_dim
+
+		self.inception = InceptionV3(include_top=False,
+			# weights='imagenet')
+			weights=('/data/ddmg/users/mmakar/projects/multiple_shortcut'
+				'/shortcut_hsic/shared/inception_v3_weights_tf_dim_ordering'
+				'_tf_kernels_notop.h5'))
+		self.avg_pool = tf.keras.layers.GlobalAveragePooling2D(name='avg_pool')
+
+		if not l2_penalty_last_only:
+			regularizer = tf.keras.regularizers.l2(l2_penalty)
+			for layer in self.inception.layers:
+				if hasattr(layer, 'kernel'):
+					self.add_loss(lambda layer=layer: regularizer(layer.kernel))
+
+		if self.embedding_dim != -1:
+			self.embedding = tf.keras.layers.Dense(self.embedding_dim,
+				kernel_regularizer=tf.keras.regularizers.l2(l2_penalty))
+		self.dense = tf.keras.layers.Dense(n_classes,
+			kernel_regularizer=tf.keras.regularizers.l2(l2_penalty))
+
+	@tf.function
+	def call(self, inputs, training=False):
+		x = self.inception(inputs, training)
+		x = self.avg_pool(x)
+		if self.embedding_dim != -1:
+			x = self.embedding(x)
+		return self.dense(x), x
+
 class SimpleConvolutionNet(tf.keras.Model):
 	"""Simple architecture with convolutions + max pooling."""
 
@@ -107,10 +149,10 @@ class SimpleConvolutionNet(tf.keras.Model):
 			1000,
 			activation="relu",
 			kernel_regularizer=tf.keras.regularizers.L2(l2=l2_penalty),
-			kernel_initializer=initializers.Zeros(), 
+			kernel_initializer=initializers.Zeros(),
 			bias_initializer=initializers.Zeros(),
 			name="Z")
-		self.dense2 = tf.keras.layers.Dense(1, kernel_initializer=initializers.Zeros(), 
+		self.dense2 = tf.keras.layers.Dense(1, kernel_initializer=initializers.Zeros(),
 			bias_initializer=initializers.Zeros())
 
 	def call(self, inputs, training=False):

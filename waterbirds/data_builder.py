@@ -293,6 +293,74 @@ def load_created_data(experiment_directory, weighted, v_dim,
 	train_data = extract_dim(train_data, v_dim)
 
 	if weighted == 'True':
+		train_data = wt.get_permutation_weights(train_data,
+			'waterbirds', 'tr_consistent')
+	elif weighted == 'True_bal':
+		train_data = wt.get_permutation_weights(train_data,
+			'waterbirds', 'bal')
+
+	train_data = train_data.values.tolist()
+	train_data = [
+		tuple(train_data[i][0].split(',')) for i in range(len(train_data))
+	]
+	validation_data = pd.read_csv(
+		f'{experiment_directory}/valid.txt')
+
+	validation_data = extract_dim(validation_data, v_dim)
+
+	if weighted == 'True':
+		validation_data = wt.get_permutation_weights(validation_data,
+			'waterbirds', 'tr_consistent')
+	elif weighted == 'True_bal':
+		validation_data = wt.get_permutation_weights(validation_data,
+			'waterbirds', 'tr_consistent')
+
+	validation_data = validation_data.values.tolist()
+	validation_data = [
+		tuple(validation_data[i][0].split(',')) for i in range(len(validation_data))
+	]
+
+	if alg_step == 'first':
+		first_second_step_idx = pickle.load(
+			open(f'{experiment_directory}/first_second_step_idx.pkl', 'rb'))
+		train_idx = first_second_step_idx['first']['train_idx']
+		valid_idx = first_second_step_idx['first']['valid_idx']
+
+		validation_data = [train_data[i] for i in valid_idx]
+		train_data = [train_data[i] for i in train_idx]
+
+	elif alg_step == 'second':
+		first_second_step_idx = pickle.load(
+			open(f'{experiment_directory}/first_second_step_idx.pkl', 'rb'))
+		train_idx = first_second_step_idx['second']['train_idx']
+		train_data = [train_data[i] for i in train_idx]
+
+	test_data_dict = {}
+	for dist in [0.1, 0.5, 0.9]:
+		test_data = pd.read_csv(
+			f'{experiment_directory}/test_{dist}.txt'
+		)
+		test_data = extract_dim(test_data, v_dim)
+		test_data = test_data.values.tolist()
+
+		test_data = [
+			tuple(test_data[i][0].split(',')) for i in range(len(test_data))
+		]
+		test_data_dict[f'{dist}'] = test_data
+
+	return train_data, validation_data, test_data_dict
+
+
+
+def load_created_data_binary(experiment_directory, weighted, v_dim,
+	alg_step):
+
+	train_data = pd.read_csv(
+		f'{experiment_directory}/train.txt')
+
+	train_data = extract_dim(train_data, v_dim)
+
+	if weighted == 'True':
 		train_data = wt.get_binary_weights(train_data,
 			'waterbirds', 'tr_consistent')
 	elif weighted == 'True_bal':
@@ -335,33 +403,21 @@ def load_created_data(experiment_directory, weighted, v_dim,
 		train_idx = first_second_step_idx['second']['train_idx']
 		train_data = [train_data[i] for i in train_idx]
 
-
 	test_data_dict = {}
+	for dist in [0.1, 0.5, 0.9]:
+		test_data = pd.read_csv(
+			f'{experiment_directory}/test_{dist}.txt'
+		)
+		test_data = extract_dim(test_data, v_dim)
+		test_data = test_data.values.tolist()
 
-
-	test_same_data = pd.read_csv(
-		f'{experiment_directory}/test_same.txt'
-	)
-	test_same_data = extract_dim(test_same_data, v_dim)
-	test_same_data = test_same_data.values.tolist()
-
-	test_same_data = [
-		tuple(test_same_data[i][0].split(',')) for i in range(len(test_same_data))
-	]
-	test_data_dict['same'] = test_same_data
-
-	test_shift_data = pd.read_csv(
-		f'{experiment_directory}/test_shift.txt'
-	)
-
-	test_shift_data = extract_dim(test_shift_data, v_dim)
-	test_shift_data = test_shift_data.values.tolist()
-	test_shift_data = [
-		tuple(test_shift_data[i][0].split(',')) for i in range(len(test_shift_data))
-	]
-	test_data_dict['shift'] = test_shift_data
+		test_data = [
+			tuple(test_data[i][0].split(',')) for i in range(len(test_data))
+		]
+		test_data_dict[f'{dist}'] = test_data
 
 	return train_data, validation_data, test_data_dict
+
 
 
 def create_noise_patches(experiment_directory, df, group, rng):
@@ -374,7 +430,7 @@ def create_noise_patches(experiment_directory, df, group, rng):
 		# this is a blanck (no noise) image. Need it for code consistency
 		no_noise_img = f'{experiment_directory}/noise_imgs/{group}/no_noise.png'
 		tf.keras.preprocessing.image.save_img(no_noise_img,
-			    tf.zeros(shape=[128, 128, 1]), scale=False
+					tf.zeros(shape=[128, 128, 1]), scale=False
 			)
 	df['noise_img'] = f'{experiment_directory}/noise_imgs/{group}/no_noise.png'
 
@@ -394,11 +450,11 @@ def create_noise_patches(experiment_directory, df, group, rng):
 			kernel = tf.cast(kernel, dtype=tf.float32)
 
 			noise_reshaped = tf.reshape(
-			    noise, [1] + tf.shape(noise).numpy().tolist())
+					noise, [1] + tf.shape(noise).numpy().tolist())
 
 			noise_conv = tf.nn.conv2d(
-			    tf.cast(noise_reshaped, dtype=tf.float32),
-			    kernel, [1, 1, 1, 1], padding='SAME'
+					tf.cast(noise_reshaped, dtype=tf.float32),
+					kernel, [1, 1, 1, 1], padding='SAME'
 			)
 
 			noise_conv = tf.squeeze(noise_conv, axis=0)
@@ -411,24 +467,20 @@ def create_noise_patches(experiment_directory, df, group, rng):
 			bird_name = df.img_filename.iloc[i].split('/')[-1][:-4]
 			bird_noise_img = f'{experiment_directory}/noise_imgs/{group}/{bird_name}.png'
 			tf.keras.preprocessing.image.save_img(bird_noise_img,
-			    tf.reshape(noise_conv, [128, 128, 1]), scale=False
+					tf.reshape(noise_conv, [128, 128, 1]), scale=False
 			)
 			df.noise_img.iloc[i] = bird_noise_img
 	return df
 
 
-def get_simulated_labels(df, random_seed, py0, ideal, sim_rng, rng):
+def get_simulated_labels(df, py0, ideal, reverse, rng):
 
 	N = df.shape[0]
-	y1 = sim_rng.binomial(1, 0.5, (N, 1))
+	y1 = rng.binomial(1, 0.5, (N, 1))
 	y2 = y1.copy()
 	y2_flip_idx = rng.choice(
-		range(N), size=(int(0.3 * N)), replace =False).tolist()
+		range(N), size=(int(0.3 * N)), replace=False).tolist()
 	y2[y2_flip_idx] = 1.0 - y2[y2_flip_idx]
-
-	if ideal:
-		y1 = rng.binomial(1, 0.5, (N, 1))
-		y2 = rng.binomial(1, 0.5, (N, 1))
 
 	# --- create redundant aux labels
 	D2 = 10
@@ -436,27 +488,53 @@ def get_simulated_labels(df, random_seed, py0, ideal, sim_rng, rng):
 
 	# --- create final label
 	coef_uy0 = np.array([[0.84], [0.4]])
+	y0_bias = -0.84
+	if ideal:
+		coef_uy0 = np.zeros_like(coef_uy0)
+		y0_bias = -0.15
+	if reverse:
+		coef_uy0 = np.array([[-0.84], [-0.4]])
+		y0_bias = 0.45
+
 	coef_uyother = rng.normal(0, 1, (y_other.shape[1], 1))
 
-	y0 = -0.84 + np.dot(np.hstack([y1, y2]), coef_uy0) + np.dot(y_other,
-		coef_uyother)
+	y0 = y0_bias + np.dot(np.hstack([y1, y2]), coef_uy0) + np.dot(y_other,
+			coef_uyother)
 	y0 = y0 + rng.normal(0, 0.5, (N, 1))
 	y0 = (sigmoid(y0) > 0.5) * 1.0
-	if ideal:
-		y0 = rng.binomial(1, py0, size= (N, 1))
 	# --- merge the created label data with the bird data
 	label_df = pd.DataFrame(y_other)
-	label_df.columns = [f'y{i}' for i in range(3, D2+3)]
+	label_df.columns = [f'y{i}' for i in range(3, D2 + 3)]
 	label_df['y0'] = y0
 	label_df['y1'] = y1
 	label_df['y2'] = y2
 
-	print(label_df[['y1', 'y2', 'y0']].groupby(['y1', 'y2']).agg(
-		["mean", "count"]).reset_index())
+	# print(label_df[['y1', 'y2', 'y0']].groupby(['y1', 'y2']).agg(
+	# 	["mean", "count"]).reset_index())
 	label_df['idx'] = label_df.groupby(['y0']).cumcount()
 	df['idx'] = df.groupby(['y0']).cumcount()
-	df = df.merge(label_df, on = ['idx', 'y0'])
+	df = df.merge(label_df, on=['idx', 'y0'])
 	df.drop('idx', axis=1, inplace=True)
+	df.reset_index(inplace=True, drop=True)
+
+	# print("===before fixing marginal====")
+	# print(df[['y1', 'y2', 'y0']].groupby(['y1', 'y2']).agg(
+	# 	["mean", "count"]).reset_index())
+
+	# print(df.y0.value_counts(normalize=True))
+
+	if ideal | reverse:
+		df = fix_marginal(df, y0_probability=py0, rng=rng)
+
+	# print("=====after fixing marginal======")
+	print(df[['y1', 'y2', 'y0']].groupby(['y1', 'y2']).agg(
+		["mean", "count"]).reset_index())
+
+	# print(df[[f'y{i}' for i in range(13)]].groupby(
+	# [f'y{i}' for i in range(1, 13)]).agg(
+	#     ["mean", "count"]).reset_index())
+
+	# print(df.y0.value_counts(normalize=True))
 
 	df = df[['img_filename'] + [f'y{i}' for i in range(df.shape[1] - 1)]]
 	df.reset_index(inplace=True, drop=True)
@@ -519,13 +597,14 @@ def create_save_waterbird_lists(experiment_directory, v_dim,
 	# ------------------------------------------- #
 	# --- get the train and validation data ----- #
 	# ------------------------------------------- #
-
-	sim_rng = np.random.RandomState(0)
-
 	train_valid_df = df[(df.train_valid_ids == 1)].reset_index(drop=True)
 	train_valid_df.drop(['train_valid_ids'], axis=1, inplace=True)
-	train_valid_df = get_simulated_labels(train_valid_df, random_seed,
-		None, False, sim_rng, rng)
+	train_valid_df = get_simulated_labels(
+		df=train_valid_df,
+		py0=None,
+		ideal=False,
+		reverse=False,
+		rng=rng)
 
 	# ---- generate noise images
 	train_valid_df = create_noise_patches(experiment_directory, train_valid_df,
@@ -541,15 +620,22 @@ def create_save_waterbird_lists(experiment_directory, v_dim,
 	train_valid_df.train.loc[train_ids] = 1
 
 
+	# --- get the marginal distribution
+	fixed_marginal = 1.0 - train_valid_df.y0.mean()
 	# --- save training data
 	train_df = train_valid_df[(train_valid_df.train == 1)].reset_index(drop=True)
-	print(train_df[['y0', 'y1', 'y2']].groupby(['y0', 'y1', 'y2']).size().reset_index())
+	# print(train_df[['y0', 'y1', 'y2']].groupby(['y0', 'y1', 'y2']).size().reset_index())
+	flip_label = rng.choice(range(train_df.shape[0]), size = int(0.05 * train_df.shape[0]), replace=False).tolist()
+	train_df['y0'].iloc[flip_label] = 1.0 - train_df['y0'].iloc[flip_label]
+
 	save_created_data(train_df, experiment_directory=experiment_directory,
 		filename='train')
 
 	# --- save validation data
 	valid_df = train_valid_df[(train_valid_df.train == 0)].reset_index(drop=True)
-	print(valid_df[['y0', 'y1', 'y2']].groupby(['y0', 'y1', 'y2']).size().reset_index())
+	# print(valid_df[['y0', 'y1', 'y2']].groupby(['y0', 'y1', 'y2']).size().reset_index())
+	flip_label = rng.choice(range(valid_df.shape[0]), size = int(0.05 * valid_df.shape[0]), replace=False).tolist()
+	valid_df['y0'].iloc[flip_label] = 1.0 - valid_df['y0'].iloc[flip_label]
 	save_created_data(valid_df, experiment_directory=experiment_directory,
 		filename='valid')
 
@@ -568,32 +654,65 @@ def create_save_waterbird_lists(experiment_directory, v_dim,
 	# in dist
 	curr_test_df = test_df.copy()
 	print(curr_test_df.head())
-	curr_test_df = get_simulated_labels(curr_test_df, random_seed,
-		None, False, sim_rng, rng)
+
+	curr_test_df = get_simulated_labels(
+		df=curr_test_df,
+		py0=None,
+		ideal=False,
+		reverse=False,
+		rng=rng)
+
 	curr_test_df = create_noise_patches(experiment_directory, curr_test_df,
-		'test_same', rng)
+		'test_0.9', rng)
 	curr_test_df, _, _ = create_images_labels(
 		curr_test_df, available_water_ids, available_land_ids,
-		 clean_back=clean_back, rng=rng)
-	print(curr_test_df[['y0', 'y1', 'y2']].groupby(['y0', 'y1', 'y2']).size().reset_index())
+		clean_back=clean_back, rng=rng)
+	# print(curr_test_df[['y0', 'y1', 'y2']].groupby(
+	# 	['y0', 'y1', 'y2']).size().reset_index())
+	flip_label = rng.choice(range(curr_test_df.shape[0]), size = int(0.05 * curr_test_df.shape[0]), replace=False).tolist()
+	curr_test_df['y0'].iloc[flip_label] = 1.0 - curr_test_df['y0'].iloc[flip_label]
 	save_created_data(curr_test_df, experiment_directory=experiment_directory,
-		filename=f'test_same')
+		filename='test_0.9')
 
-	# ood
+	# ood1
 	curr_test_df = test_df.copy()
-	curr_test_df = get_simulated_labels(curr_test_df, random_seed,
-		curr_test_df.y0.mean(), True, sim_rng, rng)
+	curr_test_df = get_simulated_labels(
+		df=curr_test_df,
+		py0=fixed_marginal,
+		ideal=True,
+		reverse=False,
+		rng=rng)
 	curr_test_df = create_noise_patches(experiment_directory, curr_test_df,
-		'test_shift', rng)
+		'test_0.5', rng)
 	curr_test_df, _, _ = create_images_labels(
 		curr_test_df, available_water_ids, available_land_ids,
-		 clean_back=clean_back, rng=rng)
-	print(curr_test_df[['y0', 'y1', 'y2']].groupby(['y0', 'y1', 'y2']).size().reset_index())
-
+		clean_back=clean_back, rng=rng)
+	# print(curr_test_df[['y0', 'y1', 'y2']].groupby(
+	# 	['y0', 'y1', 'y2']).size().reset_index())
+	flip_label = rng.choice(range(curr_test_df.shape[0]), size = int(0.05 * curr_test_df.shape[0]), replace=False).tolist()
+	curr_test_df['y0'].iloc[flip_label] = 1.0 - curr_test_df['y0'].iloc[flip_label]
 	save_created_data(curr_test_df, experiment_directory=experiment_directory,
-		filename=f'test_shift')
+		filename='test_0.5')
 
-
+	# ood2
+	curr_test_df = test_df.copy()
+	curr_test_df = get_simulated_labels(
+		df=curr_test_df,
+		py0=fixed_marginal,
+		ideal=False,
+		reverse=True,
+		rng=rng)
+	curr_test_df = create_noise_patches(experiment_directory, curr_test_df,
+		'test_0.1', rng)
+	curr_test_df, _, _ = create_images_labels(
+		curr_test_df, available_water_ids, available_land_ids,
+		clean_back=clean_back, rng=rng)
+	# print(curr_test_df[['y0', 'y1', 'y2']].groupby(
+	# 	['y0', 'y1', 'y2']).size().reset_index())
+	flip_label = rng.choice(range(curr_test_df.shape[0]), size = int(0.05 * curr_test_df.shape[0]), replace=False).tolist()
+	curr_test_df['y0'].iloc[flip_label] = 1.0 - curr_test_df['y0'].iloc[flip_label]
+	save_created_data(curr_test_df, experiment_directory=experiment_directory,
+		filename='test_0.1')
 
 
 def fix_marginal(df, y0_probability, rng):
@@ -671,7 +790,6 @@ def build_input_fns(data_dir, weighted='False', p_tr=.7, p_val = 0.25,
 		valid_dataset = valid_dataset.batch(batch_size, drop_remainder=True).repeat(1)
 		return valid_dataset
 
-
 	# build an iterator over whole validation dataset
 	def final_valid_input_fn(params):
 		map_to_image_label_given_pixel = functools.partial(map_to_image_label,
@@ -689,9 +807,7 @@ def build_input_fns(data_dir, weighted='False', p_tr=.7, p_val = 0.25,
 		map_to_image_label_given_pixel = functools.partial(map_to_image_label_test,
 			pixel=params['pixel'], weighted=params['weighted'])
 
-		dist = 'same' if py==0.9 else 'shift'
-		shifted_test_data = test_data_dict[dist]
-		batch_size = params['batch_size']
+		shifted_test_data = test_data_dict[f'{py}']
 
 		def eval_input_fn():
 			eval_shift_dataset = tf.data.Dataset.from_tensor_slices(shifted_test_data)

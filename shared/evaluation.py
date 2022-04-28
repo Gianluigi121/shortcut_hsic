@@ -16,10 +16,15 @@ def compute_loss_unweighted(labels, logits, embedding, params):
 	# labels: ground truth labels([y0(pnemounia), y1(sex), y2(support device)])
 	# logits: predicted label(pnemounia)
 	# embedding: a learned representation vector
-	y_main = tf.expand_dims(labels[:, 0], axis=-1)
+	if params['n_classes'] ==1:
+		y_main = tf.expand_dims(labels[:, 0], axis=-1)
 
-	individual_losses = tf.keras.losses.binary_crossentropy(y_main, logits,
-		from_logits=True)
+		individual_losses = tf.keras.losses.binary_crossentropy(y_main, logits,
+			from_logits=True)
+	else:
+		y_main = tf.one_hot(tf.cast(labels[:, 0], tf.int32), params['n_classes'])
+		individual_losses = tf.keras.losses.categorical_crossentropy(y_main,
+			logits, from_logits=True)
 
 	unweighted_loss = tf.reduce_mean(individual_losses)
 	aux_y = labels[:, 1:]
@@ -35,10 +40,14 @@ def compute_loss_weighted(labels, logits, embedding, sample_weights, params):
 	# labels: ground truth labels([y0(pnemounia), y1(sex), y2(support device)])
 	# logits: predicted label(pnemounia)
 	# embedding: a learned representation vector
-	y_main = tf.expand_dims(labels[:, 0], axis=-1)
-
-	individual_losses = tf.keras.losses.binary_crossentropy(y_main, logits,
-		from_logits=True)
+	if params['n_classes'] == 1:
+		y_main = tf.expand_dims(labels[:, 0], axis=-1)
+		individual_losses = tf.keras.losses.binary_crossentropy(y_main, logits,
+			from_logits=True)
+	else:
+		y_main = tf.one_hot(tf.cast(labels[:, 0], tf.int32), params['n_classes'])
+		individual_losses = tf.keras.losses.categorical_crossentropy(y_main,
+			logits, from_logits=True)
 
 	weighted_loss = sample_weights * individual_losses
 	weighted_loss = tf.math.divide_no_nan(
@@ -97,7 +106,7 @@ def hsic(x, y, sample_weights, sigma=1.0):
 	# third term
 	hsic_3 = tf.linalg.matmul(kernel_yy, sample_weights)
 	hsic_3 = tf.math.multiply(
-			tf.reduce_sum(kernel_xx, axis =1, keepdims=True), hsic_3)
+			tf.reduce_sum(kernel_xx, axis=1, keepdims=True), hsic_3)
 	hsic_3 = tf.linalg.matmul(sample_weights_T, hsic_3)
 	hsic_3 = 2 * hsic_3 / (N ** 3)
 
@@ -146,19 +155,24 @@ def get_hsic_at_sigmas(sigma_list, labels, embedding, sample_weights,
 	return result_dict
 
 
-def get_eval_metrics_dict(labels, predictions, sample_weights, params, eager=False,
+def get_eval_metrics_dict(labels, predictions, sample_weights, params,
+	eager=False,
 	sigma_list=[0.1, 1.0, 10.0, 100.0, 1000.0, 10000.0]):
+	n_classes = params['n_classes']
 	del params
-	y_main = tf.expand_dims(labels[:, 0], axis=-1)
+	if n_classes ==1:
+		y_main = tf.expand_dims(labels[:, 0], axis=-1)
+	else:
+		y_main = tf.one_hot(tf.cast(labels[:, 0], tf.int32), n_classes)
 
 	eval_metrics_dict = {}
 	eval_metrics_dict["auc"] = auroc(
 		labels=y_main, predictions=predictions["probabilities"])
 
-	mean_pred_dict = get_prediction_by_group(labels, predictions["probabilities"])
+	# mean_pred_dict = get_prediction_by_group(labels, predictions["probabilities"])
 
 	hsic_val_dict = get_hsic_at_sigmas(sigma_list, labels,
 		predictions['embedding'], sample_weights, eager=eager)
 
-	return {**eval_metrics_dict, **mean_pred_dict, **hsic_val_dict}
+	return {**eval_metrics_dict, **hsic_val_dict}
 

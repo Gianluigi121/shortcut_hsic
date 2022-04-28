@@ -33,7 +33,7 @@ from waterbirds import configurator
 HOST = socket.gethostname()
 
 # AVAILABLE_GPUS = ['7', '6', '5']
-AVAILABLE_GPUS = ['0', '1', '2', '3']
+AVAILABLE_GPUS = [ '1', '2', '3']
 
 NUM_GPUS = len(AVAILABLE_GPUS)
 PROC_PER_GPU = 1
@@ -112,7 +112,7 @@ def runner(config, base_dir, checkpoint_dir, slurm_save_dir, overwrite,
 
 	flags = ' '.join('--%s %s' % (k, str(v)) for k, v in config.items())
 	try:
-		subprocess.call(f'python -m waterbirds.main {flags} > {model_dir}/log.log 2>&1',
+		subprocess.call(f'taskset --cpu-list 26-70 python -m waterbirds.main {flags} > {model_dir}/log.log 2>&1',
 			shell=True)
 		# subprocess.call('python -m waterbirds.main %s' % flags, shell=True)
 		# print(f'python -m waterbirds.main {flags} > {model_dir}/log.log 2>&1')

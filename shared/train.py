@@ -47,7 +47,10 @@ def model_fn(features, labels, mode, params):
 
 	training_state = mode == tf.estimator.ModeKeys.TRAIN
 	logits, zpred = net(features, training=training_state)
-	ypred = tf.nn.sigmoid(logits)
+	if params['n_classes'] == 1:
+		ypred = tf.nn.sigmoid(logits)
+	else:
+		ypred = tf.nn.softmax(logits)
 
 	predictions = {
 		"classes": tf.cast(tf.math.greater_equal(ypred, .5), dtype=tf.float32),
@@ -97,7 +100,10 @@ def model_fn(features, labels, mode, params):
 
 		with tf.GradientTape() as tape:
 			logits, zpred = net(features, training=training_state)
-			ypred = tf.nn.sigmoid(logits)
+			if params['n_classes'] == 1:
+				ypred = tf.nn.sigmoid(logits)
+			else:
+				ypred = tf.nn.softmax(logits)
 
 			prediction_loss, hsic_loss = evaluation.compute_loss(labels, logits, zpred,
 				sample_weights, params)
@@ -122,6 +128,7 @@ def train(exp_dir,
 					architecture,
 					training_steps,
 					pixel,
+					n_classes,
 					num_epochs,
 					batch_size,
 					alpha,
@@ -135,7 +142,6 @@ def train(exp_dir,
 					py1_y0_shift_list,
 					debugger):
 	"""Trains the estimator."""
-
 	if not os.path.exists(exp_dir):
 		print(f'!=! Making directory {exp_dir} !=!')
 		os.makedirs(exp_dir)
@@ -152,6 +158,7 @@ def train(exp_dir,
 
 	params = {
 		"pixel": pixel,
+		"n_classes": n_classes,
 		"architecture": architecture,
 		"num_epochs": num_epochs,
 		"batch_size": batch_size,
@@ -161,8 +168,7 @@ def train(exp_dir,
 		"weighted": weighted,
 		"conditional_hsic": conditional_hsic,
 		"l2_penalty": l2_penalty,
-		"embedding_dim": embedding_dim,
-		"n_classes": 1
+		"embedding_dim": embedding_dim
 	}
 
 	if debugger == 'True':
@@ -196,6 +202,7 @@ def train(exp_dir,
 	validation_results = est.evaluate(final_valid_input_fn)
 	results = {"validation": validation_results}
 
+
 	# ---- non-asymmetric analysis
 	if py1_y0_shift_list is not None:
 		# -- during testing, we dont have access to labels/weights
@@ -205,6 +212,7 @@ def train(exp_dir,
 			distribution_results = est.evaluate(eval_input_fn, steps=1e5)
 			results[f'shift_{py}'] = distribution_results
 
+	print(results)
 	# save results
 	savefile = f"{exp_dir}/performance.pkl"
 	results = train_utils.flatten_dict(results)

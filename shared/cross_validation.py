@@ -194,7 +194,7 @@ def get_optimal_model_classic(configs, filtered_results, base_dir, hparams, num_
 	# all_results.rename(columns={'validation_auc': 'validation_pred_loss'},
 	# 	inplace=True)
 
-	
+
 	columns_to_keep = hparams + ['random_seed', 'validation_pred_loss']
 
 	best_loss = all_results[columns_to_keep]
@@ -218,16 +218,16 @@ def get_optimal_model_classic(configs, filtered_results, base_dir, hparams, num_
 
 	temp.rename(columns={
 		'shift_0.5_pred_loss': 'shift_loss',
-		'shift_0.5_auc':'shift_auc', 
+		'shift_0.5_auc':'shift_auc',
 		'shift_0.9_pred_loss': 'same_loss',
-		'shift_0.9_auc':'same_auc', 
+		'shift_0.9_auc':'same_auc',
 		}, inplace=True)
 
 	print(temp.sort_values('random_seed'))
 
 	optimal_configs = all_results[['random_seed', 'hash']]
 	# --- get the final results over all runs
-	mean_results = all_results.median(axis=0).to_frame()
+	mean_results = all_results.mean(axis=0).to_frame()
 	mean_results.rename(columns={0: 'mean'}, inplace=True)
 	std_results = all_results.std(axis=0).to_frame()
 	std_results.rename(columns={0: 'std'}, inplace=True)

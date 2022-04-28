@@ -8,7 +8,7 @@ python -m waterbirds.main \
 	--exp_dir='/data/ddmg/scate/multiple_shortcut/waterbirds/tuning/temp/' \
 	--checkpoint_dir='/data/ddmg/scate/scratch/tuning/temp' \
 	--architecture='pretrained_resnet' \
-	--training_steps=10 \
+	--training_steps=5 \
 	--pixel=128 \
 	--batch_size=64 \
 	--alpha=0.0 \
@@ -16,5 +16,5 @@ python -m waterbirds.main \
 	--conditional_hsic='False' \
 	--l2_penalty=0.0 \
 	--embedding_dim=-1 \
-	--cleanup='True'\
-	--gpuid=0
+	--cleanup='True' \
+	--gpuid=3

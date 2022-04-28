@@ -103,8 +103,11 @@ def runner(config, base_dir, checkpoint_dir, slurm_save_dir, overwrite,
 		# f.write('#SBATCH -w, --nodelist=armis28004\n')
 	if HOST == 'TIG':
 		f.write('#SBATCH --partition=gpu\n')
+		# f.write(f'#SBATCH --mail-user=mmakar@umich.edu\n')
+		# f.write(f'#SBATCH --mail-type=BEGIN,END\n')
+
 	# f.write('#SBATCH --mem-per-gpu=20000m\n')
-	f.write('#SBATCH --mem=40000m\n')
+	f.write('#SBATCH --mem=100000m\n')
 	# first check if there is any room on nfs
 	f.write(f'''nfs_amount_used=$(df {MAIN_DIR}'''
 		''' | awk '{printf sub(/%.*/, "")}')\n'''
@@ -129,7 +132,7 @@ def runner(config, base_dir, checkpoint_dir, slurm_save_dir, overwrite,
 	f.close()
 
 	if submit:
-		subprocess.call(f'sbatch {slurm_save_dir}/{hash_string}.sbatch',
+		subprocess.call(f'sbatch --dependency=afterany:313148 {slurm_save_dir}/{hash_string}.sbatch',
 			shell=True)
 
 

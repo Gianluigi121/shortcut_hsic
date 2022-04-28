@@ -21,9 +21,6 @@ flags.DEFINE_integer('random_seed', 0,
 	'random seed for tensorflow estimator')
 flags.DEFINE_enum('alg_step', 'None', ['None', 'first', 'second'],
 	'Are you running the two step alg? If so, which step?')
-
-
-
 flags.DEFINE_string('data_dir', '/datadir/',
 										'Directory to save the simulated data in.')
 flags.DEFINE_string('exp_dir', '/mydir/',
@@ -75,7 +72,7 @@ def main(argv):
 	else:
 		restrict_GPU_tf(FLAGS.gpuid, memfrac=0.9)
 
-	py1_y0_shift_list = [0.5, 0.9]
+	py1_y0_shift_list = [0.1, 0.5, 0.9]
 
 	if FLAGS.alg_step != "first":
 		train.train(
@@ -85,6 +82,7 @@ def main(argv):
 			architecture=FLAGS.architecture,
 			training_steps=FLAGS.training_steps,
 			pixel=FLAGS.pixel,
+			n_classes=1,
 			num_epochs=FLAGS.num_epochs,
 			batch_size=FLAGS.batch_size,
 			alpha=FLAGS.alpha,

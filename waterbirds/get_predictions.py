@@ -23,14 +23,14 @@ import shared.train_utils as utils
 from pathlib import Path
 
 
-def get_test_data(config, shift_string, base_dir):
+def get_test_data(config, dist, base_dir):
 		"""Function to get the data."""
 		experiment_directory = (
 			f"{base_dir}/experiment_data/rs{config['random_seed']}")
 
 
 		test_data = pd.read_csv(
-			f'{experiment_directory}/test_{shift_string}.txt'
+			f'{experiment_directory}/test_{dist}.txt'
 			).values.tolist()
 
 		test_data = [
@@ -59,7 +59,7 @@ def get_last_saved_model(estimator_dir):
 				print(estimator_dir)
 		return model
 
-def get_pred(random_seed, hash_string, shift_string, base_dir):
+def get_pred(random_seed, hash_string, dist, base_dir):
 	hash_dir = os.path.join(base_dir, 'tuning', hash_string, 'saved_model')
 	model = get_last_saved_model(hash_dir)
 
@@ -68,18 +68,19 @@ def get_pred(random_seed, hash_string, shift_string, base_dir):
 
 	test_dataset = get_test_data(
 		config=config,
-		shift_string=shift_string, 
+		dist=dist, 
 		base_dir=base_dir
 	)
 
 	pred_df_list = []
 	for batch_id, examples in enumerate(test_dataset):
-			print(f'{batch_id}')
+			if batch_id % 50 ==0: 
+				print(f'{batch_id}')
 			x, labels_weights = examples
 			predictions = model(tf.convert_to_tensor(x))['probabilities']
 
 			pred_df = pd.DataFrame(labels_weights['labels'].numpy())
-			pred_df.columns = ['y'] + [f'v{i}' for i in range(pred_df.shape[1] -1)]
+			pred_df.columns = ['y0'] + [f'y{i}' for i in range(1, pred_df.shape[1])]
 
 			pred_df['predictions'] = predictions.numpy()
 			pred_df['pred_class'] = (pred_df.predictions >= 0.5)*1.0
@@ -141,10 +142,11 @@ def get_optimal_pred_for_random_seed(random_seed, pixel, batch_size,
 	optimal_hash_string = optimal_configs[(optimal_configs.random_seed ==random_seed)]['hash'].tolist()[0]
 
 	all_predictions = []
-	for shift_string in ['same', 'shift']:
-		pred_df = get_pred(random_seed, optimal_hash_string, shift_string, base_dir)
+	for dist in [0.1, 0.5, 0.9]:
+		print(f' ====  dist {dist} ==== ')
+		pred_df = get_pred(random_seed, optimal_hash_string, dist, base_dir)
 		pred_df['model'] = f'{model_name}_{xv_mode}'
-		pred_df['dist'] = shift_string
+		pred_df['dist'] = dist
 		all_predictions.append(pred_df)
 
 	all_predictions = pd.concat(all_predictions, ignore_index=True)
@@ -152,6 +154,23 @@ def get_optimal_pred_for_random_seed(random_seed, pixel, batch_size,
 		(f'{base_dir}/final_models/opt_pred_rs{random_seed}_{model_name}_{xv_mode}'
 			f'_pix{pixel}_bs{batch_size}_vdim{v_dim}.csv'),
 	index=False)
+
+
+
+def get_optimal_pred(seed_list, pixel, batch_size,
+	model_name, xv_mode, v_dim, base_dir, **args):
+	seed_list = [int(i) for i in seed_list.split(",")]
+	for random_seed in seed_list:
+		print(f'======= Random seed :{random_seed} ========')
+		get_optimal_pred_for_random_seed(
+			random_seed=random_seed,
+			pixel=pixel, 
+			batch_size=batch_size,
+			model_name=model_name, 
+			xv_mode=xv_mode,
+			v_dim=v_dim,
+			base_dir=base_dir)
+
 
 if __name__ == "__main__":
 
@@ -168,7 +187,13 @@ if __name__ == "__main__":
 
 	parser.add_argument('--random_seed', '-random_seed',
 		help="Random seed for which we want to get predictions",
+		default=-1,
 		type=int)
+
+	parser.add_argument('--seed_list', '-seed_list',
+		help=("Comma separated list of seeds to get predictions for. "
+				"overrides random seed"),
+		type=str)
 
 	parser.add_argument('--batch_size', '-batch_size',
 		help="batch size",
@@ -202,7 +227,10 @@ if __name__ == "__main__":
 
 	args = vars(parser.parse_args())
 	if args['get_optimal_only']:
-		get_optimal_pred_for_random_seed(**args)
+		if args['random_seed'] >= 0: 
+			get_optimal_pred_for_random_seed(**args)
+		else: 
+			get_optimal_pred(**args)
 	else:
 		assert 1==2
 		get_pred_for_random_seed(**args)
