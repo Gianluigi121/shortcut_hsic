@@ -53,6 +53,85 @@ def configure_baseline(py1y0, weighted, batch_size):
 	Returns:
 		Iterator with all hyperparameter combinations
 	"""
+	all_sweep = [] 
+	for rs in [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]: 
+
+		param_dict = {
+			'random_seed': [rs],
+			'pixel': [299],
+			'l2_penalty': [0.0, 0.0001, 0.001],
+			# 'l2_penalty': [0.0],
+			'embedding_dim': [-1],
+			'sigma': [10.0],
+			'alpha': [0.0],
+			"architecture": ["pretrained_resnet"],
+			"batch_size": [batch_size],
+			'weighted': ['False'],
+			"conditional_hsic": ['False'],
+			'num_epochs': [200],
+			'py1y0': [py1y0]
+		}
+
+		print(param_dict)
+		param_dict_ordered = collections.OrderedDict(sorted(param_dict.items()))
+		keys, values = zip(*param_dict_ordered.items())
+		sweep1 = [dict(zip(keys, v)) for v in itertools.product(*values)]
+
+
+		param_dict = {
+			'random_seed': [rs],
+			'pixel': [299],
+			'l2_penalty': [0.0, 0.0001, 0.001],
+			# 'l2_penalty': [0.0],
+			'embedding_dim': [-1],
+			'sigma': [10.0],
+			'alpha': [0.0],
+			"architecture": ["pretrained_resnet"],
+			"batch_size": [batch_size],
+			'weighted': ['True'],
+			"conditional_hsic": ['False'],
+			'num_epochs': [200],
+			'py1y0': [py1y0]
+		}
+
+		print(param_dict)
+		param_dict_ordered = collections.OrderedDict(sorted(param_dict.items()))
+		keys, values = zip(*param_dict_ordered.items())
+		sweep2 = [dict(zip(keys, v)) for v in itertools.product(*values)]
+
+
+		param_dict = {
+			'random_seed': [rs],
+			'pixel': [299],
+			'l2_penalty': [0.0],
+			'embedding_dim': [-1],
+			'sigma': [100.0],
+			'alpha': [1e7, 1e9],
+			"architecture": ["pretrained_resnet"],
+			"batch_size": [batch_size],
+			'weighted': ['True'],
+			"conditional_hsic": ['False'],
+			'num_epochs': [200],
+			'py1y0': [py1y0]
+		}
+		print(param_dict)
+		param_dict_ordered = collections.OrderedDict(sorted(param_dict.items()))
+		keys, values = zip(*param_dict_ordered.items())
+		sweep3 = [dict(zip(keys, v)) for v in itertools.product(*values)]
+
+
+		all_sweep = all_sweep + sweep1 + sweep2 + sweep3 
+	return all_sweep
+
+
+
+
+def configure_baseline_actual(py1y0, weighted, batch_size):
+	"""Creates hyperparameters for correlations experiment for SLABS model.
+
+	Returns:
+		Iterator with all hyperparameter combinations
+	"""
 	param_dict = {
 		'random_seed': [0],
 		'pixel': [299],

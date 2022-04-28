@@ -27,25 +27,31 @@ import shared.train_utils as utils
 from dr import configurator
 
 # TODO: need to manage overwriting better
-ARMIS_USER = 'precisionhealth'
-ARMIS_MAIN_DIR = '/nfs/turbo/coe-rbg'
+UM_USER = 'mmakar'
 
-if ARMIS_USER == 'precisionhealth':
-	ARMIS_SCRATCH_DIR = '/scratch/precisionhealth_owned_root/precisionhealth_owned1'
+if UM_USER == 'precisionhealth':
+	UM_SCRATCH_DIR = '/scratch/precisionhealth_owned_root/precisionhealth_owned1'
 	ACCOUNT = 'precisionhealth_owned1'
 	PARTITION = 'precisionhealth'
 
-if ARMIS_USER == 'mmakar':
-	ARMIS_SCRATCH_DIR = '/scratch/mmakar_root/mmakar0/'
+if UM_USER == 'mmakar':
+	UM_SCRATCH_DIR = '/scratch/mmakar_root/mmakar0/'
 	ACCOUNT = 'mmakar0'
 	PARTITION = 'gpu'
 
-MIT_MAIN_DIR = '/data/ddmg/scate/'
-MIT_SCRATCH_DIR = '/data/ddmg/scate/scratch'
 
-if os.path.isdir(ARMIS_MAIN_DIR):
+ARMIS_MAIN_DIR = '/nfs/turbo/coe-rbg'
+GL_MAIN_DIR = '/nfs/turbo/coe-soto'
+MIT_MAIN_DIR = '/data/ddmg/scate/'
+
+if os.path.isdir(GL_MAIN_DIR):
+	MAIN_DIR = GL_MAIN_DIR
+	SCRATCH_DIR = UM_SCRATCH_DIR
+	HOST = 'GL'
+
+elif os.path.isdir(ARMIS_MAIN_DIR):
 	MAIN_DIR = ARMIS_MAIN_DIR
-	SCRATCH_DIR = ARMIS_SCRATCH_DIR
+	SCRATCH_DIR = UM_SCRATCH_DIR
 	HOST = 'ARMIS'
 
 elif os.path.isdir(MIT_MAIN_DIR):
@@ -87,7 +93,6 @@ def runner(config, base_dir, checkpoint_dir, slurm_save_dir, overwrite,
 		os.remove(f'{slurm_save_dir}/{hash_string}.sbatch')
 	f = open(f'{slurm_save_dir}/{hash_string}.sbatch', 'x')
 	f.write('#!/bin/bash\n')
-	f.write('#SBATCH -w, --nodelist=tig-slurm-2\n')
 	f.write('#SBATCH --time=10:00:00\n')
 	f.write('#SBATCH --cpus-per-task=5\n')
 	f.write('#SBATCH --nodes=1\n')
@@ -98,10 +103,16 @@ def runner(config, base_dir, checkpoint_dir, slurm_save_dir, overwrite,
 	if HOST == 'ARMIS':
 		f.write(f'#SBATCH --account={ACCOUNT}\n')
 		f.write(f'#SBATCH --partition={PARTITION}\n')
-		# f.write(f'#SBATCH --mail-user=mmakar@umich.edu\n')
-		# f.write(f'#SBATCH --mail-type=BEGIN,END\n')
+		f.write(f'#SBATCH --mail-user=mmakar@umich.edu\n')
+		f.write(f'#SBATCH --mail-type=BEGIN,END\n')
 		# f.write('#SBATCH -w, --nodelist=armis28004\n')
+	if HOST == 'GL': 
+		f.write(f'#SBATCH --account={ACCOUNT}\n')
+		f.write(f'#SBATCH --partition={PARTITION}\n')
+		f.write(f'#SBATCH --mail-user=mmakar@umich.edu\n')
+		f.write(f'#SBATCH --mail-type=BEGIN,END\n')
 	if HOST == 'TIG':
+		f.write('#SBATCH -w, --nodelist=tig-slurm-2\n')
 		f.write('#SBATCH --partition=gpu\n')
 	# f.write('#SBATCH --mem-per-gpu=20000m\n')
 	f.write('#SBATCH --mem=40000m\n')
