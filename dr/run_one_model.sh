@@ -1,0 +1,18 @@
+python -m dr.main \
+	--weighted='True' \
+	--py1y0=0.9 \
+	--random_seed=0 \
+	--alg_step='None' \
+	--data_dir='/data/ddmg/scate/multiple_shortcut/dr/' \
+	--exp_dir='/data/ddmg/scate/multiple_shortcut/dr/tuning/temp/' \
+	--checkpoint_dir='/data/ddmg/scate/scratch/tuning/temp' \
+	--architecture='pretrained_inception' \
+	--training_steps=10 \
+	--pixel=299 \
+	--batch_size=64 \
+	--alpha=0.0 \
+	--sigma=10.0 \
+	--conditional_hsic='False' \
+	--l2_penalty=0.0 \
+	--embedding_dim=-1 \
+	--gpuid=3
