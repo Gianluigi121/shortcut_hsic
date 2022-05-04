@@ -27,14 +27,19 @@ if __name__ == "__main__":
 	if args['source'] == "MIT":
 		# source_string1 = '/data/ddmg/scate/dr/images_processed'
 		# source_string2 = '/data/ddmg/scate/multiple_shortcut/dr//experiment_data/'
+
 		source_string1 = '/data/ddmg/slabs/CUB_200_2011/'
 		source_string2 = '/data/ddmg/slabs/waterbirds/places_data/'
-
+		source_string3 = '/data/ddmg/scate/multiple_shortcut/waterbirds//experiment_data/'
+		source_string4 = '/data/ddmg/slabs/segmentations/'
 	if args['target'] == "GL":
 		# target_string1 = '/nfs/turbo/coe-soto/dr/images_processed'
 		# target_string2 =  '/nfs/turbo/coe-soto/mmakar/multiple_shortcut/dr/experiment_data/'
+
 		target_string1 = '/nfs/turbo/coe-soto/CUB_200_2011/'
 		target_string2 = '/nfs/turbo/coe-soto/places_data/'
+		target_string3 = '/nfs/turbo/coe-soto/mmakar/multiple_shortcut/waterbirds/experiment_data/'
+		target_string4 = '/nfs/turbo/coe-soto/segmentations/'
 
 	txtfiles = []
 	for i in range(10):
@@ -49,6 +54,8 @@ if __name__ == "__main__":
 			# Replace the target string
 			filedata = filedata.replace(source_string1, target_string1)
 			filedata = filedata.replace(source_string2, target_string2)
+			filedata = filedata.replace(source_string3, target_string3)
+			filedata = filedata.replace(source_string4, target_string4)
 
 			# Write the file out again
 			with open(f'{args["data_dir"]}/rs{i}/{filename}', 'w') as file:
