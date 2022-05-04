@@ -26,12 +26,14 @@ def configure_hsic_model(v_dim, weighted, batch_size):
 		Iterator with all hyperparameter combinations
 	"""
 	param_dict = {
-		'random_seed': [3, 4, 5, 6, 7, 8, 9],
+		'random_seed': [i for i in range(10)],
 		'pixel': [128],
 		'l2_penalty': [0.0],
 		'embedding_dim': [-1],
-		'sigma': [100.0, 1000.0],
-		'alpha': [1e3, 1e5, 1e7, 1e9],
+		# 'sigma': [100.0, 1000.0],
+		# 'alpha': [1e3, 1e5, 1e7, 1e9],
+		'sigma': [1000.0],
+		'alpha': [1e7],
 		"architecture": ["pretrained_resnet"],
 		"batch_size": [batch_size],
 		'weighted': [weighted],

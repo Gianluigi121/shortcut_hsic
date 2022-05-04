@@ -6,6 +6,7 @@ you modified line 15-22.
 you also allowed epsilon to change
 
 ## Run multiple models
+If on MIT
 ```bash
 python -m waterbirds.create_submit_slurm \
 	--base_dir '/data/ddmg/scate/multiple_shortcut/waterbirds/' \
@@ -15,6 +16,19 @@ python -m waterbirds.create_submit_slurm \
 	--batch_size 64 \
 	--v_dim 0 \
 	--submit
+```
+
+if on GL
+```bash
+python -m waterbirds.create_submit_slurm \
+	--base_dir '/nfs/turbo/coe-soto/mmakar/multiple_shortcut/waterbirds/' \
+	--checkpoint_dir '/scratch/mmakar_root/mmakar0/multiple_shortcut/waterbirds' \
+	--slurm_save_dir '/home/mmakar/projects/multiple_shortcut/shortcut_hsic/waterbirds_slurm_scripts/' \
+	--model_to_tune 'weighted_hsic' \
+	--batch_size 64 \
+	--v_dim 1 \
+	--submit
+```
 ```
 
 ```bash
