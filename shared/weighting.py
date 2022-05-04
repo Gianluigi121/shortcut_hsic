@@ -10,8 +10,8 @@ def get_binary_weights(data, data_type, weighting_type):
 	data = data['0'].str.split(",", expand=True)
 
 	if data_type == 'chexpert':
-		D = data.shape[1] -1
-		data.columns = ['file_name'] + [f'y{i}' for i in range(D)]
+		D = data.shape[1] -2
+		data.columns = ['file_name', 'noise_img'] + [f'y{i}' for i in range(D)]
 	elif data_type == 'waterbirds':
 		D = data.shape[1] - 4
 		data.columns = ['bird_img', 'bird_seg', 'back_img', 'noise_img'] + \
@@ -69,9 +69,12 @@ def get_permutation_weights(data, data_type, weighting_type):
 	rng = np.random.RandomState(0)
 	# --- load data
 	data = data['0'].str.split(",", expand=True)
-	if data_type == 'dr':
+	if data_type == 'chexpert':
+		D = data.shape[1] -2
+		data.columns = ['img_name', 'noise_img'] + [f'y{i}' for i in range(D)]
+	elif data_type == 'dr':
 		D = data.shape[1] - 2
-		data.columns = ['img_name', 'noise_file'] + [f'y{i}' for i in range(D)]
+		data.columns = ['img_name', 'noise_img'] + [f'y{i}' for i in range(D)]
 
 	elif data_type == 'waterbirds':
 		D = data.shape[1] - 4
@@ -100,9 +103,12 @@ def get_permutation_weights(data, data_type, weighting_type):
 	data['weights'] = clf.predict_proba(data[[f'y{i}' for i in range(D)]])[:, 1]
 	data['weights'] = data['weights'] / (1.0 - data['weights'])
 
+	if data_type == 'chexpert':
+		txt_data = data.img_name + \
+			',' + data.noise_img		
 	if data_type == 'dr':
 		txt_data = data.img_name + \
-			',' + data.noise_file
+			',' + data.noise_img
 	elif data_type == 'waterbirds':
 		txt_data = data.bird_img + \
 			',' + data.bird_seg + \
