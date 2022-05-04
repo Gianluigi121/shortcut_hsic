@@ -48,6 +48,7 @@ if os.path.isdir(GL_MAIN_DIR):
 	MAIN_DIR = GL_MAIN_DIR
 	SCRATCH_DIR = UM_SCRATCH_DIR
 	HOST = 'GL'
+	PARTITION = 'gpu'
 
 elif os.path.isdir(ARMIS_MAIN_DIR):
 	MAIN_DIR = ARMIS_MAIN_DIR
@@ -106,16 +107,17 @@ def runner(config, base_dir, checkpoint_dir, slurm_save_dir, overwrite,
 		f.write(f'#SBATCH --mail-user=mmakar@umich.edu\n')
 		f.write(f'#SBATCH --mail-type=BEGIN,END\n')
 		# f.write('#SBATCH -w, --nodelist=armis28004\n')
+		# f.write('#SBATCH --mem-per-gpu=20000m\n')
 	if HOST == 'GL': 
 		f.write(f'#SBATCH --account={ACCOUNT}\n')
 		f.write(f'#SBATCH --partition={PARTITION}\n')
 		f.write(f'#SBATCH --mail-user=mmakar@umich.edu\n')
 		f.write(f'#SBATCH --mail-type=BEGIN,END\n')
+		f.write('#SBATCH --mem-per-gpu=100000m\n')
 	if HOST == 'TIG':
 		f.write('#SBATCH -w, --nodelist=tig-slurm-2\n')
 		f.write('#SBATCH --partition=gpu\n')
-	# f.write('#SBATCH --mem-per-gpu=20000m\n')
-	f.write('#SBATCH --mem=40000m\n')
+		f.write('#SBATCH --mem=40000m\n')
 	# first check if there is any room on nfs
 	f.write(f'''nfs_amount_used=$(df {MAIN_DIR}'''
 		''' | awk '{printf sub(/%.*/, "")}')\n'''

@@ -26,7 +26,7 @@ def configure_hsic_model(py1y0, weighted, batch_size):
 		Iterator with all hyperparameter combinations
 	"""
 	param_dict = {
-		'random_seed': [0],
+		'random_seed': [i for i in range(10)],
 		'pixel': [299],
 		'l2_penalty': [0.0],
 		'embedding_dim': [-1],
@@ -64,7 +64,7 @@ def configure_baseline(py1y0, weighted, batch_size):
 			'embedding_dim': [-1],
 			'sigma': [10.0],
 			'alpha': [0.0],
-			"architecture": ["pretrained_resnet"],
+			"architecture": ["pretrained_inception"],
 			"batch_size": [batch_size],
 			'weighted': ['False'],
 			"conditional_hsic": ['False'],
@@ -86,7 +86,7 @@ def configure_baseline(py1y0, weighted, batch_size):
 			'embedding_dim': [-1],
 			'sigma': [10.0],
 			'alpha': [0.0],
-			"architecture": ["pretrained_resnet"],
+			"architecture": ["pretrained_inception"],
 			"batch_size": [batch_size],
 			'weighted': ['True'],
 			"conditional_hsic": ['False'],
@@ -105,9 +105,9 @@ def configure_baseline(py1y0, weighted, batch_size):
 			'pixel': [299],
 			'l2_penalty': [0.0],
 			'embedding_dim': [-1],
-			'sigma': [100.0],
-			'alpha': [1e7, 1e9],
-			"architecture": ["pretrained_resnet"],
+			'sigma': [10.0, 1000.0, 100.0],
+			'alpha': [1e3, 1e5, 1e7, 1e9],
+			"architecture": ["pretrained_inception"],
 			"batch_size": [batch_size],
 			'weighted': ['True'],
 			"conditional_hsic": ['False'],
@@ -120,20 +120,20 @@ def configure_baseline(py1y0, weighted, batch_size):
 		sweep3 = [dict(zip(keys, v)) for v in itertools.product(*values)]
 
 
-		all_sweep = all_sweep + sweep1 + sweep2 + sweep3 
+		all_sweep = all_sweep + sweep3 
 	return all_sweep
 
 
 
 
-def configure_baseline_actual(py1y0, weighted, batch_size):
+def configure_baseline_all(py1y0, weighted, batch_size):
 	"""Creates hyperparameters for correlations experiment for SLABS model.
 
 	Returns:
 		Iterator with all hyperparameter combinations
 	"""
 	param_dict = {
-		'random_seed': [0],
+		'random_seed': [i for i in range(10)],
 		'pixel': [299],
 		'l2_penalty': [0.0, 0.0001, 0.001],
 		# 'l2_penalty': [0.0],
