@@ -433,7 +433,11 @@ def create_save_chexpert_lists(experiment_directory, v_mode,
 		df = pd.read_csv(
 			'/data/ddmg/scate/chexpert/penumonia_nofinding_cohort.csv', 
 			usecols=['Path', 'y0', 'y1'])
-	else:
+	elif os.path.exists('/nfs/turbo/coe-soto/mmakar/multiple_shortcut/chexpert/penumonia_nofinding_cohort.csv'):
+		df = pd.read_csv(
+			'/nfs/turbo/coe-soto/mmakar/multiple_shortcut/chexpert/penumonia_nofinding_cohort.csv', 
+			usecols=['Path', 'y0', 'y1'])
+	else: 
 		raise NotImplementedError('what is the path to penumonia_nofinding_cohort?')
 	
 	df.rename(columns={'Path':'img_name'}, inplace=True)
