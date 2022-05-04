@@ -49,14 +49,29 @@ If running on MIT
 ```bash
 python -m dr.cross_validation \
 	--base_dir '/data/ddmg/scate/multiple_shortcut/dr/' \
-	--model_to_tune 'weighted_hsic' \
-	--xv_method 'two_step' \
+	--model_to_tune 'unweighted_baseline' \
+	--xv_method 'classic' \
 	--batch_size 64 \
 	--num_workers 1 \
 	--t1_error 0.05 \
 	--py1y0 0.9 \
 	--n_permute 5
 ```
+
+If running on GL 
+```bash
+python -m dr.cross_validation \
+	--base_dir '/nfs/turbo/coe-soto/mmakar/multiple_shortcut/dr/' \
+	--model_to_tune 'unweighted_baseline' \
+	--xv_method 'classic' \
+	--batch_size 64 \
+	--num_workers 1 \
+	--t1_error 0.05 \
+	--py1y0 0.9 \
+	--n_permute 5
+```
+
+
 
 ## get predictions
 ```bash

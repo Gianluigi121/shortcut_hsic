@@ -24,28 +24,36 @@ import tqdm
 from pathlib import Path
 
 import shared.train_utils as utils
-from chexpert_support_device import configurator
+from chexpert import configurator
 
 # TODO: need to manage overwriting better
-ARMIS_USER = 'precisionhealth'
-ARMIS_MAIN_DIR = '/nfs/turbo/coe-rbg'
+UM_USER = 'mmakar'
 
-if ARMIS_USER == 'precisionhealth':
-	ARMIS_SCRATCH_DIR = '/scratch/precisionhealth_owned_root/precisionhealth_owned1'
+if UM_USER == 'precisionhealth':
+	UM_SCRATCH_DIR = '/scratch/precisionhealth_owned_root/precisionhealth_owned1'
 	ACCOUNT = 'precisionhealth_owned1'
 	PARTITION = 'precisionhealth'
 
-if ARMIS_USER == 'mmakar':
-	ARMIS_SCRATCH_DIR = '/scratch/mmakar_root/mmakar0/'
+if UM_USER == 'mmakar':
+	UM_SCRATCH_DIR = '/scratch/mmakar_root/mmakar0/'
 	ACCOUNT = 'mmakar0'
 	PARTITION = 'gpu'
 
-MIT_MAIN_DIR = '/data/ddmg/scate/'
-MIT_SCRATCH_DIR = '/data/ddmg/scate/scratch'
 
-if os.path.isdir(ARMIS_MAIN_DIR):
+ARMIS_MAIN_DIR = '/nfs/turbo/coe-rbg'
+GL_MAIN_DIR = '/nfs/turbo/coe-soto'
+MIT_MAIN_DIR = '/data/ddmg/scate/'
+
+
+if os.path.isdir(GL_MAIN_DIR):
+	MAIN_DIR = GL_MAIN_DIR
+	SCRATCH_DIR = UM_SCRATCH_DIR
+	HOST = 'GL'
+	PARTITION = 'gpu'
+
+elif os.path.isdir(ARMIS_MAIN_DIR):
 	MAIN_DIR = ARMIS_MAIN_DIR
-	SCRATCH_DIR = ARMIS_SCRATCH_DIR
+	SCRATCH_DIR = UM_SCRATCH_DIR
 	HOST = 'ARMIS'
 
 elif os.path.isdir(MIT_MAIN_DIR):
@@ -97,12 +105,20 @@ def runner(config, base_dir, checkpoint_dir, slurm_save_dir, overwrite,
 	if HOST == 'ARMIS':
 		f.write(f'#SBATCH --account={ACCOUNT}\n')
 		f.write(f'#SBATCH --partition={PARTITION}\n')
-		# f.write(f'#SBATCH --mail-user=mmakar@umich.edu\n')
-		# f.write(f'#SBATCH --mail-type=BEGIN,END\n')
+		f.write(f'#SBATCH --mail-user=mmakar@umich.edu\n')
+		f.write(f'#SBATCH --mail-type=BEGIN,END\n')
 		# f.write('#SBATCH -w, --nodelist=armis28004\n')
+		# f.write('#SBATCH --mem-per-gpu=20000m\n')
+	if HOST == 'GL': 
+		f.write(f'#SBATCH --account={ACCOUNT}\n')
+		f.write(f'#SBATCH --partition={PARTITION}\n')
+		f.write(f'#SBATCH --mail-user=mmakar@umich.edu\n')
+		f.write(f'#SBATCH --mail-type=BEGIN,END\n')
+		f.write('#SBATCH --mem-per-gpu=100000m\n')
 	if HOST == 'TIG':
+		f.write('#SBATCH -w, --nodelist=tig-slurm-2\n')
 		f.write('#SBATCH --partition=gpu\n')
-	f.write('#SBATCH --mem-per-gpu=20000m\n')
+		f.write('#SBATCH --mem=40000m\n')
 	# first check if there is any room on nfs
 	f.write(f'''nfs_amount_used=$(df {MAIN_DIR}'''
 		''' | awk '{printf sub(/%.*/, "")}')\n'''
@@ -121,7 +137,7 @@ def runner(config, base_dir, checkpoint_dir, slurm_save_dir, overwrite,
 		'''fi\n''')
 	if not overwrite:
 		f.write(f'if [ ! -f "{model_dir}/performance.pkl" ]; then\n')
-	f.write(f'	python -m chexpert_support_device.main {flags} > {model_dir}/log.log 2>&1 \n')
+	f.write(f'	python -m chexpert.main {flags} > {model_dir}/log.log 2>&1 \n')
 	if not overwrite:
 		f.write('fi\n')
 	f.close()
@@ -131,13 +147,12 @@ def runner(config, base_dir, checkpoint_dir, slurm_save_dir, overwrite,
 			shell=True)
 
 
-def main(experiment_name,
-					base_dir,
+def main(base_dir,
 					checkpoint_dir,
 					slurm_save_dir,
 					model_to_tune,
-					v_mode, 
 					v_dim,
+					v_mode, 
 					batch_size,
 					overwrite,
 					submit,
@@ -162,7 +177,7 @@ def main(experiment_name,
 	"""
 	if not os.path.exists(slurm_save_dir):
 		os.system(f'mkdir -p {slurm_save_dir}')
-	all_config = configurator.get_sweep(experiment_name, model_to_tune,
+	all_config = configurator.get_sweep(model_to_tune,
 		v_mode, v_dim, batch_size)
 	print(f'All configs are {len(all_config)}')
 	if not overwrite:
@@ -192,6 +207,7 @@ def main(experiment_name,
 		raise NotImplementedError("havent implemented cleaning up yet")
 
 
+
 if __name__ == "__main__":
 
 	implemented_models = open(
@@ -211,12 +227,6 @@ if __name__ == "__main__":
 
 	parser.add_argument('--slurm_save_dir', '-slurm_save_dir',
 		help="Directory where the slurm scripts will be saved",
-		type=str)
-
-	parser.add_argument('--experiment_name', '-experiment_name',
-		default='skew_train',
-		choices=['unskew_train', 'skew_train'],
-		help="Which experiment to run",
 		type=str)
 
 	parser.add_argument('--model_to_tune', '-model_to_tune',
@@ -246,8 +256,8 @@ if __name__ == "__main__":
 		type=int)
 
 	parser.add_argument('--v_mode', '-v_mode',
-		default='normal',
-		choices=['normal', 'noisy', 'corry'],
+		default='dag1',
+		choices=['dag1', 'dag2', 'dag3'],
 		help="Mode for additional dimensions",
 		type=str)
 
@@ -259,6 +269,7 @@ if __name__ == "__main__":
 		action='store_true',
 		default=False,
 		help="NUCLEAR: delete all model results?")
+
 
 	args = vars(parser.parse_args())
 	main(**args)

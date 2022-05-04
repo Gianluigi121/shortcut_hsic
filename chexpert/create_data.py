@@ -15,7 +15,10 @@ def main(save_directory):
 	if os.path.isdir('/data/ddmg/slabs/CheXpert-v1.0'):
 		data_dir = '/data/ddmg/slabs/CheXpert-v1.0'
 	elif os.path.isdir('/nfs/turbo/coe-rbg/CheXpert-v1.0'): 
-		data_dir = '/nfs/turbo/coe-rbg'
+		data_dir = '/nfs/turbo/coe-rbg/CheXpert-v1.0'
+	elif os.path.isdir('/nfs/turbo/coe-soto/CheXpert-v1.0'): 
+		data_dir = '/nfs/turbo/coe-soto/CheXpert-v1.0'
+
 	else: 
 		raise ValueError("cant find data!")
 
