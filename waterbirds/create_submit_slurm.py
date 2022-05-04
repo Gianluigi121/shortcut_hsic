@@ -132,7 +132,7 @@ def runner(config, base_dir, checkpoint_dir, slurm_save_dir, overwrite,
 	f.close()
 
 	if submit:
-		subprocess.call(f'sbatch --dependency=afterany:313148 {slurm_save_dir}/{hash_string}.sbatch',
+		subprocess.call(f'sbatch --dependency=afterany:314685 {slurm_save_dir}/{hash_string}.sbatch',
 			shell=True)
 
 
@@ -241,7 +241,7 @@ if __name__ == "__main__":
 	parser.add_argument('--batch_size', '-batch_size',
 		help="batch size",
 		type=int)
-	
+
 	parser.add_argument('--v_dim', '-v_dim',
 		help="dimension of additional Vs",
 		type=int)

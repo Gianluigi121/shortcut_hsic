@@ -262,7 +262,7 @@ def extract_dim(data, v_dim):
 	data.columns = ['bird_img', 'bird_seg', 'back_img', 'noise_img'] + \
 		[f'y{i}' for i in range(data.shape[1]-4)]
 
-	v_to_drop = [f'y{i}' for i in range(3 + v_dim, data.shape[1]-4)]
+	v_to_drop = [f'y{i}' for i in range(1 + v_dim, data.shape[1]-4)]
 
 
 	if len(v_to_drop) > 0:
@@ -628,6 +628,7 @@ def create_save_waterbird_lists(experiment_directory, v_dim,
 	flip_label = rng.choice(range(train_df.shape[0]), size = int(0.05 * train_df.shape[0]), replace=False).tolist()
 	train_df['y0'].iloc[flip_label] = 1.0 - train_df['y0'].iloc[flip_label]
 
+
 	save_created_data(train_df, experiment_directory=experiment_directory,
 		filename='train')
 
@@ -636,6 +637,7 @@ def create_save_waterbird_lists(experiment_directory, v_dim,
 	# print(valid_df[['y0', 'y1', 'y2']].groupby(['y0', 'y1', 'y2']).size().reset_index())
 	flip_label = rng.choice(range(valid_df.shape[0]), size = int(0.05 * valid_df.shape[0]), replace=False).tolist()
 	valid_df['y0'].iloc[flip_label] = 1.0 - valid_df['y0'].iloc[flip_label]
+
 	save_created_data(valid_df, experiment_directory=experiment_directory,
 		filename='valid')
 
@@ -671,6 +673,7 @@ def create_save_waterbird_lists(experiment_directory, v_dim,
 	# 	['y0', 'y1', 'y2']).size().reset_index())
 	flip_label = rng.choice(range(curr_test_df.shape[0]), size = int(0.05 * curr_test_df.shape[0]), replace=False).tolist()
 	curr_test_df['y0'].iloc[flip_label] = 1.0 - curr_test_df['y0'].iloc[flip_label]
+
 	save_created_data(curr_test_df, experiment_directory=experiment_directory,
 		filename='test_0.9')
 
@@ -691,6 +694,7 @@ def create_save_waterbird_lists(experiment_directory, v_dim,
 	# 	['y0', 'y1', 'y2']).size().reset_index())
 	flip_label = rng.choice(range(curr_test_df.shape[0]), size = int(0.05 * curr_test_df.shape[0]), replace=False).tolist()
 	curr_test_df['y0'].iloc[flip_label] = 1.0 - curr_test_df['y0'].iloc[flip_label]
+
 	save_created_data(curr_test_df, experiment_directory=experiment_directory,
 		filename='test_0.5')
 
@@ -711,6 +715,7 @@ def create_save_waterbird_lists(experiment_directory, v_dim,
 	# 	['y0', 'y1', 'y2']).size().reset_index())
 	flip_label = rng.choice(range(curr_test_df.shape[0]), size = int(0.05 * curr_test_df.shape[0]), replace=False).tolist()
 	curr_test_df['y0'].iloc[flip_label] = 1.0 - curr_test_df['y0'].iloc[flip_label]
+
 	save_created_data(curr_test_df, experiment_directory=experiment_directory,
 		filename='test_0.1')
 

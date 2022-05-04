@@ -33,7 +33,7 @@ from waterbirds import configurator
 HOST = socket.gethostname()
 
 # AVAILABLE_GPUS = ['7', '6', '5']
-AVAILABLE_GPUS = [ '1', '2', '3']
+AVAILABLE_GPUS = [ '2']
 
 NUM_GPUS = len(AVAILABLE_GPUS)
 PROC_PER_GPU = 1
@@ -112,7 +112,7 @@ def runner(config, base_dir, checkpoint_dir, slurm_save_dir, overwrite,
 
 	flags = ' '.join('--%s %s' % (k, str(v)) for k, v in config.items())
 	try:
-		subprocess.call(f'taskset --cpu-list 26-70 python -m waterbirds.main {flags} > {model_dir}/log.log 2>&1',
+		subprocess.call(f'taskset --cpu-list 40-75 python -m waterbirds.main {flags} > {model_dir}/log.log 2>&1',
 			shell=True)
 		# subprocess.call('python -m waterbirds.main %s' % flags, shell=True)
 		# print(f'python -m waterbirds.main {flags} > {model_dir}/log.log 2>&1')
@@ -155,7 +155,7 @@ def main(base_dir,
 			not utils.tried_config(config, base_dir=base_dir) for config in all_config
 		]
 		all_config = list(itertools.compress(all_config, configs_to_consider))
-	
+
 	print(f'Remaining configs are {len(all_config)}')
 
 	# all_config = all_config[:1]

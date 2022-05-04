@@ -70,7 +70,7 @@ def main(argv):
 	if FLAGS.gpuid == 'cpu':
 		restrict_GPU_tf('100', memfrac=0, use_cpu=True)
 	else:
-		restrict_GPU_tf(FLAGS.gpuid, memfrac=0.9)
+		restrict_GPU_tf(FLAGS.gpuid)
 
 	py1_y0_shift_list = [0.1, 0.5, 0.9]
 
