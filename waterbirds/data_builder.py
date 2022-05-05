@@ -257,14 +257,17 @@ def save_created_data(data_frame, experiment_directory, filename):
 		index=False)
 
 
-def extract_dim(data, v_dim):
+def extract_dim(data, v_dim, alg_step):
 	data = data['0'].str.split(",", expand=True)
 	data.columns = ['bird_img', 'bird_seg', 'back_img', 'noise_img'] + \
 		[f'y{i}' for i in range(data.shape[1]-4)]
 
 	v_to_drop = [f'y{i}' for i in range(1 + v_dim, data.shape[1]-4)]
 
-
+	if (alg_step == 'first' | alg_step == 'second'): 
+		v_to_drop.append('y0')
+	print(v_to_drop)
+	assert 1==2
 	if len(v_to_drop) > 0:
 		data.drop(v_to_drop, axis =1, inplace=True)
 
@@ -290,7 +293,7 @@ def load_created_data(experiment_directory, weighted, v_dim,
 	train_data = pd.read_csv(
 		f'{experiment_directory}/train.txt')
 
-	train_data = extract_dim(train_data, v_dim)
+	train_data = extract_dim(train_data, v_dim, alg_step)
 
 	if weighted == 'True':
 		train_data = wt.get_permutation_weights(train_data,
@@ -306,7 +309,7 @@ def load_created_data(experiment_directory, weighted, v_dim,
 	validation_data = pd.read_csv(
 		f'{experiment_directory}/valid.txt')
 
-	validation_data = extract_dim(validation_data, v_dim)
+	validation_data = extract_dim(validation_data, v_dim, alg_step)
 
 	if weighted == 'True':
 		validation_data = wt.get_permutation_weights(validation_data,
@@ -332,7 +335,7 @@ def load_created_data(experiment_directory, weighted, v_dim,
 	elif alg_step == 'second':
 		first_second_step_idx = pickle.load(
 			open(f'{experiment_directory}/first_second_step_idx.pkl', 'rb'))
-		train_idx = first_second_step_idx['second']['train_idx']
+		train_idx = first_second_step_idx['second']
 		train_data = [train_data[i] for i in train_idx]
 
 	test_data_dict = {}
@@ -340,7 +343,7 @@ def load_created_data(experiment_directory, weighted, v_dim,
 		test_data = pd.read_csv(
 			f'{experiment_directory}/test_{dist}.txt'
 		)
-		test_data = extract_dim(test_data, v_dim)
+		test_data = extract_dim(test_data, v_dim, alg_step)
 		test_data = test_data.values.tolist()
 
 		test_data = [
@@ -349,75 +352,6 @@ def load_created_data(experiment_directory, weighted, v_dim,
 		test_data_dict[f'{dist}'] = test_data
 
 	return train_data, validation_data, test_data_dict
-
-
-
-def load_created_data_binary(experiment_directory, weighted, v_dim,
-	alg_step):
-
-	train_data = pd.read_csv(
-		f'{experiment_directory}/train.txt')
-
-	train_data = extract_dim(train_data, v_dim)
-
-	if weighted == 'True':
-		train_data = wt.get_binary_weights(train_data,
-			'waterbirds', 'tr_consistent')
-	elif weighted == 'True_bal':
-		train_data = wt.get_binary_weights(train_data,
-			'waterbirds', 'bal')
-
-	train_data = train_data.values.tolist()
-	train_data = [
-		tuple(train_data[i][0].split(',')) for i in range(len(train_data))
-	]
-	validation_data = pd.read_csv(
-		f'{experiment_directory}/valid.txt')
-
-	validation_data = extract_dim(validation_data, v_dim)
-
-	if weighted == 'True':
-		validation_data = wt.get_binary_weights(validation_data,
-			'waterbirds', 'tr_consistent')
-	elif weighted == 'True_bal':
-		validation_data = wt.get_binary_weights(validation_data,
-			'waterbirds', 'tr_consistent')
-
-	validation_data = validation_data.values.tolist()
-	validation_data = [
-		tuple(validation_data[i][0].split(',')) for i in range(len(validation_data))
-	]
-
-	if alg_step == 'first':
-		first_second_step_idx = pickle.load(
-			open(f'{experiment_directory}/first_second_step_idx.pkl', 'rb'))
-		train_idx = first_second_step_idx['first']['train_idx']
-		valid_idx = first_second_step_idx['first']['valid_idx']
-
-		validation_data = [train_data[i] for i in valid_idx]
-		train_data = [train_data[i] for i in train_idx]
-
-	elif alg_step == 'second':
-		first_second_step_idx = pickle.load(
-			open(f'{experiment_directory}/first_second_step_idx.pkl', 'rb'))
-		train_idx = first_second_step_idx['second']['train_idx']
-		train_data = [train_data[i] for i in train_idx]
-
-	test_data_dict = {}
-	for dist in [0.1, 0.5, 0.9]:
-		test_data = pd.read_csv(
-			f'{experiment_directory}/test_{dist}.txt'
-		)
-		test_data = extract_dim(test_data, v_dim)
-		test_data = test_data.values.tolist()
-
-		test_data = [
-			tuple(test_data[i][0].split(',')) for i in range(len(test_data))
-		]
-		test_data_dict[f'{dist}'] = test_data
-
-	return train_data, validation_data, test_data_dict
-
 
 
 def create_noise_patches(experiment_directory, df, group, rng):
@@ -539,6 +473,51 @@ def get_simulated_labels(df, py0, ideal, reverse, rng):
 	df = df[['img_filename'] + [f'y{i}' for i in range(df.shape[1] - 1)]]
 	df.reset_index(inplace=True, drop=True)
 	return df
+
+
+def create_splits(experiment_directory, random_seed): 
+	rng = np.RandomState(random_seed + 1234)
+	train_data = pd.read_csv(
+		f'{experiment_directory}/train.txt')
+
+	# --- split into first and second step 
+	step_one_idx = rng.choice(train_data.shape[0], 
+		size = int(0.5*train_data.shape[0]), 
+		replace = False).tolist()
+
+	step_two_idx = list(
+		set(range(train_data.shape[0])) - set(step_one_idx))
+
+	# --- split into first step train and test 
+	step_one_train_idx = rng.choice(step_one_idx, 
+		size = int(0.7 * len(step_one_idx)))
+
+	step_one_valid_idx = list(
+		set(range(len(step_one_idx))) - set(step_one_train_idx))
+
+	idx_dict = {
+	'first': {
+		'train_idx': step_one_train_idx, 
+		'valid_idx': step_one_valid_idx
+		}
+	'second': step_two_idx
+	}
+
+
+	train_data = train_data['0'].str.split(",", expand=True)
+	train_data.columns = ['bird_img', 'bird_seg', 'back_img', 'noise_img'] + \
+		[f'y{i}' for i in range(data.shape[1]-4)]
+
+	train_data.drop(['bird_img', 'bird_seg', 'back_img', 'noise_img'], 
+		axis=1, inplace=True)
+	step_one_train_data = train_data.iloc[step_one_train_idx]
+	step_one_valid_data = train_data.iloc[step_one_valid_idx]
+	step_two_train_data = train_data.iloc[step_two_idx]
+
+
+	print("====step 1 train ========")
+	print(step_one_train_data.mean(axis=1).shape)
+	assert 1==2
 
 
 
@@ -761,6 +740,10 @@ def build_input_fns(data_dir, weighted='False', p_tr=.7, p_val = 0.25,
 			p_val=p_val,
 			clean_back=clean_back,
 			random_seed=random_seed)
+
+
+	if not os.path.exists(f'{experiment_directory}/first_second_step_idx.pkl'):
+		create_splits(experiment_directory, random_seed)
 
 	# --load splits
 	train_data, valid_data, test_data_dict = load_created_data(

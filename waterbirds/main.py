@@ -96,7 +96,6 @@ def main(argv):
 			py1_y0_shift_list=py1_y0_shift_list,
 			debugger=FLAGS.debugger)
 	else:
-		# TODO: don't hard code number of classes
 		train_fs.train(
 			exp_dir=FLAGS.exp_dir,
 			checkpoint_dir=FLAGS.checkpoint_dir,
@@ -104,7 +103,7 @@ def main(argv):
 			architecture=FLAGS.architecture,
 			training_steps=FLAGS.training_steps,
 			pixel=FLAGS.pixel,
-			n_classes=FLAGS.v_dim + 3,
+			n_classes=FLAGS.v_dim,
 			num_epochs=FLAGS.num_epochs,
 			batch_size=FLAGS.batch_size,
 			weighted=FLAGS.weighted,
