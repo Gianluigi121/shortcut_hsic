@@ -22,6 +22,7 @@ import functools
 from copy import deepcopy
 import numpy as np
 import pandas as pd
+import pickle
 import tensorflow as tf
 from shared import weighting as wt
 
@@ -263,11 +264,9 @@ def extract_dim(data, v_dim, alg_step):
 		[f'y{i}' for i in range(data.shape[1]-4)]
 
 	v_to_drop = [f'y{i}' for i in range(1 + v_dim, data.shape[1]-4)]
-
-	if (alg_step == 'first' | alg_step == 'second'): 
+	if alg_step != "None": 
 		v_to_drop.append('y0')
-	print(v_to_drop)
-	assert 1==2
+
 	if len(v_to_drop) > 0:
 		data.drop(v_to_drop, axis =1, inplace=True)
 
@@ -281,14 +280,62 @@ def extract_dim(data, v_dim, alg_step):
 	]
 
 	for colid, col in enumerate(label_cols):
-		assert f'y{colid}' == col
 		txt_df = txt_df + ',' + data[col].astype(str)
 
 	txt_df = txt_df.to_frame(name='0')
 	return txt_df
 
-def load_created_data(experiment_directory, weighted, v_dim,
-	alg_step):
+
+def load_created_data(experiment_directory, weighted, v_dim, alg_step):
+	if alg_step == 'None':
+		return load_created_data_full(experiment_directory, weighted, v_dim, alg_step)
+	else:
+		return load_created_data_subsets(experiment_directory, weighted, v_dim, alg_step)
+
+
+def load_created_data_subsets(experiment_directory, weighted, v_dim, alg_step):
+
+	train_data_full = pd.read_csv(
+		f'{experiment_directory}/train.txt')
+
+	train_data_full = extract_dim(train_data_full, v_dim, alg_step)
+	if weighted == 'True':
+		train_data_full = wt.get_permutation_weights(train_data_full,
+			'waterbirds', 'tr_consistent')
+	elif weighted == 'True_bal':
+		train_data_full = wt.get_permutation_weights(train_data_full,
+			'waterbirds', 'bal')
+
+	idx_dict = pickle.load(
+		open(f'{experiment_directory}/first_step.pkl',
+			'rb'))
+
+	train_data = train_data_full.iloc[idx_dict['train_idx']]
+	validation_data = train_data_full.iloc[idx_dict['valid_idx']]
+	test_data = train_data_full.iloc[idx_dict['test_idx']]
+
+	train_data = train_data.values.tolist()
+	train_data = [
+		tuple(train_data[i][0].split(',')) for i in range(len(train_data))
+	]
+
+	validation_data = validation_data.values.tolist()
+	validation_data = [
+		tuple(validation_data[i][0].split(',')) for i in range(len(validation_data))
+	]
+
+	test_data = test_data.values.tolist()
+	test_data = [
+		tuple(test_data[i][0].split(',')) for i in range(len(test_data))
+	]
+
+
+	return train_data, validation_data, test_data
+
+
+
+
+def load_created_data_full(experiment_directory, weighted, v_dim, alg_step):
 
 	train_data = pd.read_csv(
 		f'{experiment_directory}/train.txt')
@@ -306,6 +353,7 @@ def load_created_data(experiment_directory, weighted, v_dim,
 	train_data = [
 		tuple(train_data[i][0].split(',')) for i in range(len(train_data))
 	]
+
 	validation_data = pd.read_csv(
 		f'{experiment_directory}/valid.txt')
 
@@ -322,21 +370,6 @@ def load_created_data(experiment_directory, weighted, v_dim,
 	validation_data = [
 		tuple(validation_data[i][0].split(',')) for i in range(len(validation_data))
 	]
-
-	if alg_step == 'first':
-		first_second_step_idx = pickle.load(
-			open(f'{experiment_directory}/first_second_step_idx.pkl', 'rb'))
-		train_idx = first_second_step_idx['first']['train_idx']
-		valid_idx = first_second_step_idx['first']['valid_idx']
-
-		validation_data = [train_data[i] for i in valid_idx]
-		train_data = [train_data[i] for i in train_idx]
-
-	elif alg_step == 'second':
-		first_second_step_idx = pickle.load(
-			open(f'{experiment_directory}/first_second_step_idx.pkl', 'rb'))
-		train_idx = first_second_step_idx['second']
-		train_data = [train_data[i] for i in train_idx]
 
 	test_data_dict = {}
 	for dist in [0.1, 0.5, 0.9]:
@@ -476,48 +509,54 @@ def get_simulated_labels(df, py0, ideal, reverse, rng):
 
 
 def create_splits(experiment_directory, random_seed): 
-	rng = np.RandomState(random_seed + 1234)
+	rng = np.random.RandomState(random_seed + 1234)
 	train_data = pd.read_csv(
 		f'{experiment_directory}/train.txt')
 
-	# --- split into first and second step 
-	step_one_idx = rng.choice(train_data.shape[0], 
+	# --- split into training validation and estimation/testing
+	train_valid_idx = rng.choice(train_data.shape[0], 
 		size = int(0.5*train_data.shape[0]), 
 		replace = False).tolist()
 
-	step_two_idx = list(
-		set(range(train_data.shape[0])) - set(step_one_idx))
+	test_idx = list(
+		set(range(train_data.shape[0])) - set(train_valid_idx))
 
 	# --- split into first step train and test 
-	step_one_train_idx = rng.choice(step_one_idx, 
-		size = int(0.7 * len(step_one_idx)))
+	train_idx = rng.choice(train_valid_idx, 
+		size = int(0.7 * len(train_valid_idx)))
 
-	step_one_valid_idx = list(
-		set(range(len(step_one_idx))) - set(step_one_train_idx))
+	valid_idx = list(
+		set(range(len(train_valid_idx))) - set(train_idx))
 
 	idx_dict = {
-	'first': {
-		'train_idx': step_one_train_idx, 
-		'valid_idx': step_one_valid_idx
-		}
-	'second': step_two_idx
+		'train_idx': train_idx, 
+		'valid_idx': valid_idx, 
+		'test_idx': test_idx
 	}
 
 
-	train_data = train_data['0'].str.split(",", expand=True)
-	train_data.columns = ['bird_img', 'bird_seg', 'back_img', 'noise_img'] + \
-		[f'y{i}' for i in range(data.shape[1]-4)]
+	# train_data = train_data['0'].str.split(",", expand=True)
+	# train_data.columns = ['bird_img', 'bird_seg', 'back_img', 'noise_img'] + \
+	# 	[f'y{i}' for i in range(train_data.shape[1]-4)]
 
-	train_data.drop(['bird_img', 'bird_seg', 'back_img', 'noise_img'], 
-		axis=1, inplace=True)
-	step_one_train_data = train_data.iloc[step_one_train_idx]
-	step_one_valid_data = train_data.iloc[step_one_valid_idx]
-	step_two_train_data = train_data.iloc[step_two_idx]
+	# train_data.drop(['bird_img', 'bird_seg', 'back_img', 'noise_img'], 
+	# 	axis=1, inplace=True)
+	# train_data = train_data.astype(float)
+	# step_one_train_data = train_data.iloc[train_idx]
+	# step_one_valid_data = train_data.iloc[valid_idx]
+	# step_two_train_data = train_data.iloc[test_idx]
 
 
-	print("====step 1 train ========")
-	print(step_one_train_data.mean(axis=1).shape)
-	assert 1==2
+	# print("====step 1 train ========")
+	# print(step_one_train_data.mean(axis=0))
+	# print("=====step 1 valid =========")
+	# print(step_one_valid_data.mean(axis=0))
+	# print("====== step 2 ======")
+	# print(step_two_train_data.mean(axis=0))
+
+	pickle.dump(idx_dict, open(
+		f'{experiment_directory}/first_step.pkl', 'wb'))
+
 
 
 
@@ -742,7 +781,7 @@ def build_input_fns(data_dir, weighted='False', p_tr=.7, p_val = 0.25,
 			random_seed=random_seed)
 
 
-	if not os.path.exists(f'{experiment_directory}/first_second_step_idx.pkl'):
+	if not os.path.exists(f'{experiment_directory}/first_step.pkl'):
 		create_splits(experiment_directory, random_seed)
 
 	# --load splits
