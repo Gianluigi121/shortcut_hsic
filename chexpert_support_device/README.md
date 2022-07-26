@@ -1,14 +1,33 @@
 # Chexpert experiment with support device and sex as a shortcut
 
 ## Step 1: create the data
-Suppose you want to save the dataset in the directory `my_data_dir`, then run
+Suppose you want to save the dataset in the directory `my_data_dir`. 
+If on armis 
 ```bash
-srun --cpus-per-task=1 --ntasks-per-node=1 --account=precisionhealth_owned1 --partition=precisionhealth --time=5:00:00 --tasks-per-node=1 --mem=120gb --pty /bin/bash
+srun --cpus-per-task=1 --ntasks-per-node=1 --account=precisionhealth_owned1 --partition=precisionhealth --time=5:00:00 --tasks-per-node=1 --mem=50gb --pty /bin/bash
 
 source activate env
 python -m chexpert_support_device.create_data \
 	--save_directory my_data_dir
 ```
+
+if on GL
+```bash
+srun --account=engin1 --partition=standard --time=1:00:00 --tasks-per-node=1 --mem=1gb --pty /bin/bash
+
+source activate env
+python -m chexpert_support_device.create_data \
+	--save_directory /nfs/turbo/coe-soto/mmakar/multiple_shortcut/chexpert_sd/
+```
+For me it is: 
+```bash
+srun --account=engin1 --partition=standard --time=1:00:00 --tasks-per-node=1 --mem=1gb --pty /bin/bash
+
+source activate env
+python -m chexpert_support_device.create_data \
+	--save_directory /nfs/turbo/coe-soto/mmakar/multiple_shortcut/chexpert_sd/
+```
+
 
 ## Train the model
 

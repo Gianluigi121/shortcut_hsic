@@ -11,18 +11,36 @@ pd.set_option('mode.chained_assignment', None)
 def main(save_directory):
 	""" Function that creates a csv with the cohort"""
 	# -- import the data
-	trdf = pd.read_csv('/nfs/turbo/coe-rbg/CheXpert-v1.0/train.csv')
-	vdf = pd.read_csv('/nfs/turbo/coe-rbg/CheXpert-v1.0/valid.csv')
+	if os.path.isdir('/data/ddmg/slabs/CheXpert-v1.0'):
+		data_dir = '/data/ddmg/slabs/CheXpert-v1.0'
+	elif os.path.isdir('/nfs/turbo/coe-rbg/CheXpert-v1.0'): 
+		data_dir = '/nfs/turbo/coe-rbg/CheXpert-v1.0'
+	elif os.path.isdir('/nfs/turbo/coe-soto/CheXpert-v1.0'): 
+		data_dir = '/nfs/turbo/coe-soto/CheXpert-v1.0'
+
+	else: 
+		raise ValueError("cant find data!")
+
+	trdf = pd.read_csv(f'{data_dir}/train.csv')
+	vdf = pd.read_csv(f'{data_dir}/valid.csv')
 	df = trdf.append(vdf)
 	del trdf, vdf
 
+	# Index(['Path', 'Sex', 'Age', 'Frontal/Lateral', 'AP/PA', 'No Finding',
+	#        'Enlarged Cardiomediastinum', 'Cardiomegaly', 'Lung Opacity',
+	#        'Lung Lesion', 'Edema', 'Consolidation', 'Pneumonia', 'Atelectasis',
+	#        'Pneumothorax', 'Pleural Effusion', 'Pleural Other', 'Fracture',
+	#        'Support Devices'],
+
+
+	second_var = 'Enlarged Cardiomediastinum'
 	# -- keep only healthy, pneumonia and support device
 	df = df[(
-		(df['No Finding'] == 1) | (df['Pneumonia'] == 1) | (df['Support Devices'] == 1)
+		(df['No Finding'] == 1) | (df['Pneumonia'] == 1) | (df[second_var] == 1)
 	)]
 
 	# print(df.Pneumonia.value_counts(dropna=False, normalize=True))
-	# print(df['Support Devices'].value_counts(dropna=False))
+	# print(df[second_var].value_counts(dropna=False))
 
 	# -- clean up a bit
 	df['patient'] = df.Path.str.extract(r'(patient)(\d+)')[1]
@@ -30,7 +48,7 @@ def main(save_directory):
 	df['uid'] = df['patient'] + "_" + df['study'].astype(str)
 	df = df[
 		['uid', 'patient', 'study', 'Sex', 'Frontal/Lateral',
-		'Pneumonia', 'Support Devices', 'Path']
+		'Pneumonia', second_var, 'Path']
 	]
 
 	# current_uid = len(df.uid.unique())
@@ -52,7 +70,7 @@ def main(save_directory):
 	# current_uid = len(df.uid.unique())
 
 	# get the second auxiliary label
-	df['y2'] = df['Support Devices'].copy()
+	df['y2'] = df[second_var].copy()
 	df.y2.fillna(0, inplace=True)
 	df.y2[(df.y2 == -1)] = 1
 	# print(df.y2.value_counts(dropna = False, normalize = True))
@@ -70,9 +88,11 @@ def main(save_directory):
 	# current_uid = len(df.uid.unique())
 
 	df.drop(
-		['Frontal/Lateral', 'frontal', 'Pneumonia', 'Support Devices'],
+		['Frontal/Lateral', 'frontal', 'Pneumonia', second_var],
 		axis=1, inplace=True)
 	# print(df.head())
+
+	print(df[['y0','y1', 'y2']].groupby(['y1', 'y2']).agg('mean'))
 
 	# save
 	df.to_csv(f'{save_directory}/penumonia_nofinding_sd_cohort.csv', index=False)
