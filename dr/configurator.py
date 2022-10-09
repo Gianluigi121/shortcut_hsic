@@ -17,7 +17,6 @@
 import collections
 import itertools
 from pathlib import Path
-import warnings
 
 def configure_hsic_model(py1y0, weighted, batch_size):
 	"""Creates hyperparameters for correlations experiment for SLABS model.
@@ -30,13 +29,15 @@ def configure_hsic_model(py1y0, weighted, batch_size):
 		'pixel': [299],
 		'l2_penalty': [0.0],
 		'embedding_dim': [-1],
-		'sigma': [100.0, 1000.0],
-		'alpha': [1e7, 1e9],
+		# 'sigma': [0.1, 1.0, 10.0],
+		# 'alpha': [1e3, 1e5, 1e7, 1e9],
+		'sigma': [0.1, 1.0],
+		'alpha': [1e3, 1e5, 1e7],
 		"architecture": ["pretrained_inception"],
 		"batch_size": [batch_size],
 		'weighted': [weighted],
 		"conditional_hsic": ['False'],
-		'num_epochs': [200],
+		'num_epochs': [10],
 		'py1y0': [py1y0]
 	}
 	print(param_dict)
@@ -47,19 +48,19 @@ def configure_hsic_model(py1y0, weighted, batch_size):
 	return sweep
 
 
-def configure_baseline(py1y0, weighted, batch_size):
+def configure_baseline_all(py1y0, weighted, batch_size):
 	"""Creates hyperparameters for correlations experiment for SLABS model.
 
 	Returns:
 		Iterator with all hyperparameter combinations
 	"""
-	all_sweep = [] 
-	for rs in [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]: 
+	all_sweep = []
+	for rs in [i for i in range(10)]:
 
 		param_dict = {
 			'random_seed': [rs],
 			'pixel': [299],
-			'l2_penalty': [0.0, 0.0001, 0.001],
+			'l2_penalty': [0.0, 0.0001],
 			# 'l2_penalty': [0.0],
 			'embedding_dim': [-1],
 			'sigma': [10.0],
@@ -68,7 +69,7 @@ def configure_baseline(py1y0, weighted, batch_size):
 			"batch_size": [batch_size],
 			'weighted': ['False'],
 			"conditional_hsic": ['False'],
-			'num_epochs': [200],
+			'num_epochs': [10],
 			'py1y0': [py1y0]
 		}
 
@@ -81,7 +82,7 @@ def configure_baseline(py1y0, weighted, batch_size):
 		param_dict = {
 			'random_seed': [rs],
 			'pixel': [299],
-			'l2_penalty': [0.0, 0.0001, 0.001],
+			'l2_penalty': [0.0, 0.0001],
 			# 'l2_penalty': [0.0],
 			'embedding_dim': [-1],
 			'sigma': [10.0],
@@ -90,7 +91,7 @@ def configure_baseline(py1y0, weighted, batch_size):
 			"batch_size": [batch_size],
 			'weighted': ['True'],
 			"conditional_hsic": ['False'],
-			'num_epochs': [200],
+			'num_epochs': [10],
 			'py1y0': [py1y0]
 		}
 
@@ -105,28 +106,24 @@ def configure_baseline(py1y0, weighted, batch_size):
 			'pixel': [299],
 			'l2_penalty': [0.0],
 			'embedding_dim': [-1],
-			'sigma': [10.0, 1000.0, 100.0],
-			'alpha': [1e3, 1e5, 1e7, 1e9],
+			'sigma': [0.1, 1.0, 10.0, 100.0],
+			'alpha': [1e1, 1e3, 1e5, 1e7],
 			"architecture": ["pretrained_inception"],
 			"batch_size": [batch_size],
 			'weighted': ['True'],
 			"conditional_hsic": ['False'],
-			'num_epochs': [200],
+			'num_epochs': [10],
 			'py1y0': [py1y0]
 		}
 		print(param_dict)
 		param_dict_ordered = collections.OrderedDict(sorted(param_dict.items()))
 		keys, values = zip(*param_dict_ordered.items())
 		sweep3 = [dict(zip(keys, v)) for v in itertools.product(*values)]
-
-
-		all_sweep = all_sweep + sweep3 
+		all_sweep = all_sweep + sweep1 + sweep2 + sweep3
 	return all_sweep
 
 
-
-
-def configure_baseline_all(py1y0, weighted, batch_size):
+def configure_baseline(py1y0, weighted, batch_size):
 	"""Creates hyperparameters for correlations experiment for SLABS model.
 
 	Returns:
@@ -135,7 +132,7 @@ def configure_baseline_all(py1y0, weighted, batch_size):
 	param_dict = {
 		'random_seed': [i for i in range(10)],
 		'pixel': [299],
-		'l2_penalty': [0.0, 0.0001, 0.001],
+		'l2_penalty': [0.0, 0.0001],
 		# 'l2_penalty': [0.0],
 		'embedding_dim': [-1],
 		'sigma': [10.0],
@@ -144,7 +141,7 @@ def configure_baseline_all(py1y0, weighted, batch_size):
 		"batch_size": [batch_size],
 		'weighted': [weighted],
 		"conditional_hsic": ['False'],
-		'num_epochs': [200],
+		'num_epochs': [10],
 		'py1y0': [py1y0]
 	}
 

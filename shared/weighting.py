@@ -1,6 +1,7 @@
 """weighting methods."""
 import numpy as np
 import pandas as pd
+from sklearn.metrics import roc_auc_score
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
 pd.options.mode.chained_assignment = None
@@ -12,6 +13,10 @@ def get_binary_weights(data, data_type, weighting_type):
 	if data_type == 'chexpert':
 		D = data.shape[1] -2
 		data.columns = ['file_name', 'noise_img'] + [f'y{i}' for i in range(D)]
+	elif data_type == 'chexpert_sd':
+		D = data.shape[1] -1
+		data.columns = ['file_name'] + [f'y{i}' for i in range(D)]
+
 	elif data_type == 'waterbirds':
 		D = data.shape[1] - 4
 		data.columns = ['bird_img', 'bird_seg', 'back_img', 'noise_img'] + \
@@ -48,6 +53,9 @@ def get_binary_weights(data, data_type, weighting_type):
 	# print(data.weights.isnull().sum())
 	# print(data.weights.min(), data.weights.max(), data.weights.mean(), data.weights.var())
 	if data_type == 'chexpert':
+		assert 1==2 
+		txt_data = data.file_name
+	elif data_type == 'chexpert_sd':
 		txt_data = data.file_name
 
 	elif data_type == 'waterbirds':
@@ -65,13 +73,17 @@ def get_binary_weights(data, data_type, weighting_type):
 	return txt_data
 
 
-def get_permutation_weights(data, data_type, weighting_type):
+def get_permutation_weights(data, data_type, weighting_type, return_df=False):
 	rng = np.random.RandomState(0)
 	# --- load data
 	data = data['0'].str.split(",", expand=True)
 	if data_type == 'chexpert':
 		D = data.shape[1] -2
 		data.columns = ['img_name', 'noise_img'] + [f'y{i}' for i in range(D)]
+	elif data_type == 'chexpert_sd':
+		D = data.shape[1] -1
+		data.columns = ['img_name'] + [f'y{i}' for i in range(D)]
+
 	elif data_type == 'dr':
 		D = data.shape[1] - 2
 		data.columns = ['img_name', 'noise_img'] + [f'y{i}' for i in range(D)]
@@ -96,16 +108,26 @@ def get_permutation_weights(data, data_type, weighting_type):
 
 	weighting_data = pd.concat([obs_data, perm_data], axis=0)
 
-	# clf = LogisticRegression(penalty='none')
+	# clf = LogisticRegression(penalty='none', C=0.001)
 	clf = RandomForestClassifier(random_state=0)
 	clf.fit(weighting_data[[f'y{i}' for i in range(D)]],
 		weighting_data.label)
 	data['weights'] = clf.predict_proba(data[[f'y{i}' for i in range(D)]])[:, 1]
+
+
+	# weighting_data_pred = clf.predict_proba(weighting_data[[f'y{i}' for i in range(D)]])[:,1]
+	# print(roc_auc_score(weighting_data.label,weighting_data_pred))
 	data['weights'] = data['weights'] / (1.0 - data['weights'])
+	# print(data.weights.min(), data.weights.max(), data.weights.mean(), data.weights.var())
+	# assert 1==2
+	if return_df:
+		return data
 
 	if data_type == 'chexpert':
 		txt_data = data.img_name + \
 			',' + data.noise_img		
+	if data_type == 'chexpert_sd':
+		txt_data = data.img_name 
 	if data_type == 'dr':
 		txt_data = data.img_name + \
 			',' + data.noise_img

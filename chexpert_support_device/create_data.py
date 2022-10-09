@@ -26,54 +26,55 @@ def main(save_directory):
 	df = trdf.append(vdf)
 	del trdf, vdf
 
-	# Index(['Path', 'Sex', 'Age', 'Frontal/Lateral', 'AP/PA', 'No Finding',
-	#        'Enlarged Cardiomediastinum', 'Cardiomegaly', 'Lung Opacity',
-	#        'Lung Lesion', 'Edema', 'Consolidation', 'Pneumonia', 'Atelectasis',
-	#        'Pneumothorax', 'Pleural Effusion', 'Pleural Other', 'Fracture',
-	#        'Support Devices'],
+
+	# this is all the variables 
+	# 'Enlarged Cardiomediastinum', 'Cardiomegaly', 'Lung Opacity',
+	# 'Lung Lesion', 'Edema', 'Consolidation', 'Pneumonia', 'Atelectasis',
+	# 'Pneumothorax', 'Pleural Effusion', 'Pleural Other', 'Fracture',
+	# 'Support Devices'],
 
 
-	second_var = 'Enlarged Cardiomediastinum'
-	# -- keep only healthy, pneumonia and support device
-	df = df[(
-		(df['No Finding'] == 1) | (df['Pneumonia'] == 1) | (df[second_var] == 1)
-	)]
+	# these are distinguishable from pnumonia 
+	aux_vars = ['Support Devices']
 
-	# print(df.Pneumonia.value_counts(dropna=False, normalize=True))
-	# print(df[second_var].value_counts(dropna=False))
+	drop_vars = ['Enlarged Cardiomediastinum', 'Cardiomegaly', 
+	 'Fracture', 'Lung Opacity','Edema', 'Consolidation', 'Pneumothorax',
+		'Atelectasis', 'Pleural Effusion', 'Pleural Other', 'Lung Lesion']
+
+	for var in drop_vars: 
+		df = df[((df[var] !=1) & (df[var] !=-1))]
+		print(var, df.shape)
 
 	# -- clean up a bit
 	df['patient'] = df.Path.str.extract(r'(patient)(\d+)')[1]
 	df['study'] = df.Path.str.extract(r'(study)(\d+)')[1].astype(int)
 	df['uid'] = df['patient'] + "_" + df['study'].astype(str)
 	df = df[
-		['uid', 'patient', 'study', 'Sex', 'Frontal/Lateral',
-		'Pneumonia', second_var, 'Path']
+		['uid', 'patient', 'study', 'Sex', 'Age', 'Frontal/Lateral',
+		'Pneumonia'] + aux_vars  + ['Path']
 	]
-
-	# current_uid = len(df.uid.unique())
-	# print(f'Total uids {current_uid}')
 
 	# get the main outcome
 	df['y0'] = df['Pneumonia'].copy()
 	df.y0.fillna(0, inplace=True)
 	df.y0[(df.y0 == -1)] = 1
 
-	# print(df.y0.value_counts(dropna=False, normalize=True))
-
-	# get the first auxiliary label
-	df = df[(df.Sex != 'Unknown')]
-	df['y1'] = (df.Sex == 'Male').astype(int)
-	df.drop('Sex', axis=1, inplace=True)
-
 	# print(f'Lost {100*(current_uid - len(df.uid.unique()))/current_uid:.3f}% because of unknown sex')
 	# current_uid = len(df.uid.unique())
+	df['y1'] = df['Support Devices'].copy()
+	df.y1.fillna(0, inplace=True)
+	df.y1[(df.y1 == -1)] = 1
+	df.drop('Support Devices', axis=1, inplace=True)
 
-	# get the second auxiliary label
-	df['y2'] = df[second_var].copy()
-	df.y2.fillna(0, inplace=True)
-	df.y2[(df.y2 == -1)] = 1
-	# print(df.y2.value_counts(dropna = False, normalize = True))
+
+	# get the third auxiliary label
+	df = df[(df.Sex != 'Unknown')]
+	df['y2'] = (df.Sex == 'Male').astype(int)
+	df.drop('Sex', axis=1, inplace=True)
+
+
+	df['y3'] = (df.Age> 30).astype(int)
+	df.drop('Age', axis=1, inplace=True)
 
 	# keep only studies with frontal views
 	df['frontal'] = (df['Frontal/Lateral'] == 'Frontal').astype(int)
@@ -88,12 +89,15 @@ def main(save_directory):
 	# current_uid = len(df.uid.unique())
 
 	df.drop(
-		['Frontal/Lateral', 'frontal', 'Pneumonia', second_var],
+		['Frontal/Lateral', 'frontal', 'Pneumonia'],
 		axis=1, inplace=True)
 	# print(df.head())
 
-	print(df[['y0','y1', 'y2']].groupby(['y1', 'y2']).agg('mean'))
+	for i in range(1, 4):
+		print(i)
+		print(df[['y0', f'y{i}']].groupby(f'y{i}').mean())
 
+	print(df.columns)
 	# save
 	df.to_csv(f'{save_directory}/penumonia_nofinding_sd_cohort.csv', index=False)
 

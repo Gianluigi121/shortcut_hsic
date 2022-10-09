@@ -3,9 +3,9 @@ python -m dr.main \
 	--py1y0=0.9 \
 	--random_seed=0 \
 	--alg_step='None' \
-	--data_dir='/data/ddmg/scate/multiple_shortcut/dr/' \
-	--exp_dir='/data/ddmg/scate/multiple_shortcut/dr/tuning/temp/' \
-	--checkpoint_dir='/data/ddmg/scate/scratch/tuning/temp' \
+	--data_dir /nfs/turbo/coe-soto/mmakar/multiple_shortcut/dr/ \
+	--exp_dir /nfs/turbo/coe-soto/mmakar/multiple_shortcut/dr/tuning/temp \
+	--checkpoint_dir /scratch/mmakar_root/mmakar0/multiple_shortcut/dr/tuning/temp \
 	--architecture='pretrained_inception' \
 	--training_steps=10 \
 	--pixel=299 \
@@ -15,4 +15,4 @@ python -m dr.main \
 	--conditional_hsic='False' \
 	--l2_penalty=0.0 \
 	--embedding_dim=-1 \
-	--gpuid=3
+ --gpuid $CUDA_VISIBLE_DEVICES

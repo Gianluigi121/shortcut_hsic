@@ -48,6 +48,7 @@ flags.DEFINE_enum('alg_step', 'None', ['None', 'first', 'second'],
 flags.DEFINE_string('cleanup', 'False',
 		'remove tensorflow artifacts after training to reduce memory usage.')
 flags.DEFINE_string('gpuid', '0', 'Gpu id to run the model on.')
+flags.DEFINE_string('warm_start_dir', 'None', 'directory to warmstart from.')
 flags.DEFINE_string('debugger', 'False', 'debugger mode')
 
 
@@ -79,6 +80,7 @@ def main(argv):
 			architecture=FLAGS.architecture,
 			training_steps=FLAGS.training_steps,
 			pixel=FLAGS.pixel,
+			n_classes=1, 
 			num_epochs=FLAGS.num_epochs,
 			batch_size=FLAGS.batch_size,
 			alpha=FLAGS.alpha,
@@ -90,9 +92,9 @@ def main(argv):
 			random_seed=FLAGS.random_seed,
 			cleanup=FLAGS.cleanup,
 			py1_y0_shift_list=py1_y0_shift_list,
+			warm_start_dir=FLAGS.warm_start_dir,
 			debugger=FLAGS.debugger)
 	else: 
-		# TODO: don't hard code number of classes
 		train_fs.train(
 			exp_dir=FLAGS.exp_dir,
 			checkpoint_dir=FLAGS.checkpoint_dir,
@@ -100,7 +102,7 @@ def main(argv):
 			architecture=FLAGS.architecture,
 			training_steps=FLAGS.training_steps,
 			pixel=FLAGS.pixel,
-			n_classes=FLAGS.v_dim + 3,
+			n_classes=FLAGS.v_dim,
 			num_epochs=FLAGS.num_epochs,
 			batch_size=FLAGS.batch_size,
 			weighted=FLAGS.weighted,

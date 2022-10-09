@@ -29,6 +29,7 @@ def main(base_dir, model_to_tune,
 	all_config = list(itertools.compress(all_config, configs_available))
 	found_configs = len(all_config)
 	print(f'------ FOUND {found_configs} / {original_configs}---------')
+
 	best_model_results, best_model_configs = cv.get_optimal_model_results(
 		mode=xv_method,
 		configs=all_config,

@@ -37,7 +37,6 @@ if UM_USER == 'precisionhealth':
 if UM_USER == 'mmakar':
 	UM_SCRATCH_DIR = '/scratch/mmakar_root/mmakar0/'
 	ACCOUNT = 'mmakar0'
-	PARTITION = 'gpu'
 
 
 ARMIS_MAIN_DIR = '/nfs/turbo/coe-rbg'
@@ -108,7 +107,7 @@ def runner(config, base_dir, checkpoint_dir, slurm_save_dir, overwrite,
 		f.write(f'#SBATCH --mail-type=BEGIN,END\n')
 		# f.write('#SBATCH -w, --nodelist=armis28004\n')
 		# f.write('#SBATCH --mem-per-gpu=20000m\n')
-	if HOST == 'GL': 
+	if HOST == 'GL':
 		f.write(f'#SBATCH --account={ACCOUNT}\n')
 		f.write(f'#SBATCH --partition={PARTITION}\n')
 		f.write(f'#SBATCH --mail-user=mmakar@umich.edu\n')

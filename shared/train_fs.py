@@ -32,7 +32,10 @@ def model_fn(features, labels, mode, params):
 
 	training_state = mode == tf.estimator.ModeKeys.TRAIN
 	logits, zpred = net(features, training=training_state)
-	ypred = tf.nn.softmax(logits)
+	if params['n_classes'] == 1:
+		ypred = tf.nn.sigmoid(logits)
+	else:
+		ypred = tf.nn.softmax(logits)
 
 	predictions = {
 		"classes": tf.cast(tf.math.greater_equal(ypred, .5), dtype=tf.float32),
@@ -49,18 +52,16 @@ def model_fn(features, labels, mode, params):
 				"classify": tf.estimator.export.PredictOutput(predictions)
 			})
 
-
 	labels = labels['labels']
 
 	if mode == tf.estimator.ModeKeys.EVAL:
-		main_eval_metrics = {}
-
-		# -- main loss components
-		loss = 	tf.reduce_mean(tf.keras.losses.binary_crossentropy(labels, logits,
-		from_logits=True))
+		loss = tf.reduce_mean(
+			tf.keras.losses.categorical_crossentropy(
+				labels, logits, from_logits=True))
 
 		return tf.estimator.EstimatorSpec(
 			mode=mode, loss=loss, train_op=None)
+
 
 	if mode == tf.estimator.ModeKeys.TRAIN:
 		opt = tf.keras.optimizers.Adam()
@@ -71,14 +72,18 @@ def model_fn(features, labels, mode, params):
 
 		with tf.GradientTape() as tape:
 			logits, zpred = net(features, training=training_state)
-			ypred = tf.nn.softmax(logits)
+			if params['n_classes'] == 1:
+				ypred = tf.nn.sigmoid(logits)
+			else:
+				ypred = tf.nn.softmax(logits)
 
+		
 			prediction_loss = tf.reduce_mean(
-				tf.keras.losses.binary_crossentropy(labels, logits,
-				from_logits=True))
+				tf.keras.losses.categorical_crossentropy(
+					labels, logits, from_logits=True))
 
 			regularization_loss = tf.reduce_sum(net.losses)
-			loss = regularization_loss + prediction_loss 
+			loss = regularization_loss + prediction_loss
 
 		variables = net.trainable_variables
 		gradients = tape.gradient(loss, variables)
@@ -100,14 +105,13 @@ def train(exp_dir,
 					n_classes,
 					num_epochs,
 					batch_size,
-					weighted,
+					weighted, 
 					l2_penalty,
 					embedding_dim,
 					random_seed,
 					cleanup,
 					debugger):
 	"""Trains the estimator."""
-
 	if not os.path.exists(exp_dir):
 		print(f'!=! Making directory {exp_dir} !=!')
 		os.makedirs(exp_dir)
@@ -119,19 +123,19 @@ def train(exp_dir,
 	train_utils.cleanup_directory(checkpoint_dir)
 
 	input_fns = dataset_builder()
-	train_data_size, train_input_fn, valid_input_fn, eval_input_fn_creater = input_fns
+	train_data_size, train_input_fn, valid_input_fn, final_valid_input_fn, eval_input_fn_creater = input_fns
 	steps_per_epoch = int(train_data_size / batch_size)
 
 	params = {
 		"pixel": pixel,
+		"n_classes": n_classes,
 		"architecture": architecture,
 		"num_epochs": num_epochs,
 		"batch_size": batch_size,
 		"steps_per_epoch": steps_per_epoch,
-		"weighted": weighted,
 		"l2_penalty": l2_penalty,
-		"embedding_dim": embedding_dim,
-		"n_classes": n_classes
+		"embedding_dim": embedding_dim, 
+		"weighted": weighted
 	}
 
 	if debugger == 'True':
@@ -152,10 +156,18 @@ def train(exp_dir,
 		training_steps = int(params['num_epochs'] * steps_per_epoch)
 
 	print(f'=======TRAINING STEPS {training_steps}=============')
+
 	est.train(train_input_fn, steps=training_steps)
 
-	validation_results = est.evaluate(valid_input_fn)
+	validation_results = est.evaluate(final_valid_input_fn)
 	results = {"validation": validation_results}
+
+	print(results)
+	# save results
+	savefile = f"{exp_dir}/performance.pkl"
+	results = train_utils.flatten_dict(results)
+	pickle.dump(results, open(savefile, "wb"))
+
 	# save model
 	est.export_saved_model(f'{exp_dir}/saved_model', serving_input_fn)
 

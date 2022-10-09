@@ -7,7 +7,7 @@ need to install p7zip through conda
 
 
 ## Run multiple models
-on MIT 
+on MIT
 ```bash
 python -m dr.create_submit_slurm \
 	--base_dir '/data/ddmg/scate/multiple_shortcut/dr/' \
@@ -24,7 +24,7 @@ python -m dr.create_submit_slurm \
 	--base_dir '/nfs/turbo/coe-soto/mmakar/multiple_shortcut/dr/' \
 	--checkpoint_dir '/scratch/mmakar_root/mmakar0/multiple_shortcut/dr' \
 	--slurm_save_dir '/home/mmakar/projects/multiple_shortcut/shortcut_hsic/dr_slurm_scripts/' \
-	--model_to_tune 'unweighted_baseline' \
+	--model_to_tune 'weighted_hsic' \
 	--batch_size 64 \
 	--py1y0 0.9 \
 	--submit
@@ -58,17 +58,17 @@ python -m dr.cross_validation \
 	--n_permute 5
 ```
 
-If running on GL 
+If running on GL
 ```bash
 python -m dr.cross_validation \
 	--base_dir '/nfs/turbo/coe-soto/mmakar/multiple_shortcut/dr/' \
-	--model_to_tune 'unweighted_baseline' \
-	--xv_method 'classic' \
+	--model_to_tune 'weighted_hsic' \
+	--xv_method 'two_step' \
 	--batch_size 64 \
-	--num_workers 1 \
-	--t1_error 0.05 \
+	--num_workers 11 \
+	--t1_error 0.001 \
 	--py1y0 0.9 \
-	--n_permute 5
+	--n_permute 100
 ```
 
 
@@ -77,11 +77,44 @@ python -m dr.cross_validation \
 ```bash
 python -m dr.get_predictions \
 	--base_dir '/data/ddmg/scate/multiple_shortcut/dr/' \
-	--random_seed 0 \
+	--seed_list "0,1,2,3,4,5,6,7,8,9" \
 	--batch_size 64 \
-	--pixel 128 \
+	--pixel 299 \
 	--py1y0 0.9 \
-	--model_name 'weighted_baseline' \
-	--xv_mode 'classic'
+	--model_name 'weighted_hsic' \
+	--xv_mode 'two_step' \
+	--n_jobs 10 \
+	--get_optimal_only
+```
+on GL
+
+```bash
+python -m dr.get_predictions \
+	--base_dir '/nfs/turbo/coe-soto/mmakar/multiple_shortcut/dr/' \
+	--batch_size 64 \
+	--pixel 299 \
+	--py1y0 0.9 \
+	--model_name 'weighted_hsic' \
+	--xv_mode 'two_step' \
+	--n_jobs 10 \
+	--eval_group 'valid'
 
 ```
+
+```bash
+python -m dr.get_predictions \
+	--base_dir '/nfs/turbo/coe-soto/mmakar/multiple_shortcut/dr/' \
+	--seed_list "0,1,2,3,4,5,6,7,8,9" \
+	--batch_size 64 \
+	--pixel 299 \
+	--py1y0 0.9 \
+	--model_name 'weighted_hsic' \
+	--xv_mode 'two_step' \
+	--n_jobs 20 \
+	--eval_group 'test' \
+	--get_optimal_only
+
+```
+
+
+

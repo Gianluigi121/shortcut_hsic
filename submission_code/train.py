@@ -1,29 +1,12 @@
 """Main training protocol used for training."""
 import os
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '1'
 import pickle
 import copy
 import tensorflow as tf
 
-from shared import architectures
-from shared import evaluation
-from shared import train_utils
-from pathlib import Path
-
-
-class EvalCheckpointSaverListener(tf.estimator.CheckpointSaverListener):
-	""" Allows evaluation on multiple datasets """
-	def __init__(self, estimator, input_fn, name):
-		self.estimator = estimator
-		self.input_fn = input_fn
-		self.name = name
-
-	def after_save(self, session, global_step):
-		del session, global_step
-		if self.name == "train":
-			self.estimator.evaluate(self.input_fn, name=self.name, steps=1)
-		else:
-			self.estimator.evaluate(self.input_fn, name=self.name)
+import architectures
+import evaluation
+import train_utils
 
 def serving_input_fn():
 	"""Serving function to facilitate model saving."""
@@ -98,7 +81,6 @@ def model_fn(features, labels, mode, params):
 			opt = tf.keras.optimizers.Adam(epsilon=0.1, learning_rate=0.0001)
 		else: 
 			opt = tf.keras.optimizers.Adam()
-			# opt = tf.keras.optimizers.Adam(learning_rate=0.0001)
 		global_step = tf.compat.v1.train.get_global_step()
 
 		ckpt = tf.train.Checkpoint(
@@ -146,7 +128,6 @@ def train(exp_dir,
 					random_seed,
 					cleanup,
 					py1_y0_shift_list,
-					warm_start_dir, 
 					debugger):
 	"""Trains the estimator."""
 	if not os.path.exists(exp_dir):
@@ -179,7 +160,7 @@ def train(exp_dir,
 	}
 
 	if debugger == 'True':
-		save_checkpoints_steps = 10
+		save_checkpoints_steps = 50
 	else:
 		save_checkpoints_steps = 100000
 
@@ -189,57 +170,29 @@ def train(exp_dir,
 		# keep_checkpoint_max=2
 		)
 
-
-	if warm_start_dir == 'None':
-		est = tf.estimator.Estimator(
-			model_fn, model_dir=checkpoint_dir, params=params, config=run_config)
-	else: 
-		subdirs = [x for x in Path(warm_start_dir).iterdir() if x.is_dir() and 'temp' not in str(x)]
-		warm_start_dir = str(sorted(subdirs)[-1])
-		warm_start_dir = f'{warm_start_dir}/variables/variables'
-
-		warm_start = tf.estimator.WarmStartSettings(warm_start_dir)
-		est = tf.estimator.Estimator(
-			model_fn, model_dir=checkpoint_dir, params=params, config=run_config, 
-			warm_start_from=warm_start)
-
+	est = tf.estimator.Estimator(
+		model_fn, model_dir=checkpoint_dir, params=params, config=run_config)
 	print(f"=====steps_per_epoch {steps_per_epoch}======")
 	if training_steps == 0:
 		training_steps = int(params['num_epochs'] * steps_per_epoch)
 
 	print(f'=======TRAINING STEPS {training_steps}=============')
 
-	# saving_listeners = [
-	# 	EvalCheckpointSaverListener(est, train_input_fn, "train"),
-	# 	EvalCheckpointSaverListener(est, eval_input_fn_creater(0.1, params), "0.1"),
-	# 	EvalCheckpointSaverListener(est, eval_input_fn_creater(0.5, params), "0.5"),
-	# 	EvalCheckpointSaverListener(est, eval_input_fn_creater(0.9, params), "0.9"),
-	# ]
 
 	est.train(train_input_fn, steps=training_steps)
 
-	if 'chexpert' in exp_dir:
-		print("#---------------Validating---------------#")
-		validation_results = est.evaluate(valid_input_fn)
-		results = {"validation": validation_results}
-
-	else: 
-		validation_results = est.evaluate(final_valid_input_fn)
-		results = {"validation": validation_results}
-
+	validation_results = est.evaluate(final_valid_input_fn)
+	results = {"validation": validation_results}
 
 	# ---- non-asymmetric analysis
 	if py1_y0_shift_list is not None:
 		# -- during testing, we dont have access to labels/weights
 		for py in py1_y0_shift_list:
-			print(f'#--------------- Testing on {py} ------------------#')
 			eval_input_fn = eval_input_fn_creater(py, params,
 				fixed_joint=True, aux_joint_skew=0.9)
 			distribution_results = est.evaluate(eval_input_fn, steps=1e5)
 			results[f'shift_{py}'] = distribution_results
 
-	print(results)
-	# save results
 	savefile = f"{exp_dir}/performance.pkl"
 	results = train_utils.flatten_dict(results)
 	pickle.dump(results, open(savefile, "wb"))

@@ -25,15 +25,16 @@ def configure_hsic_model(v_dim, weighted, batch_size):
 	Returns:
 		Iterator with all hyperparameter combinations
 	"""
+	sigmas = [1.0, 10.0, 100.0, 1000.0]
+	alphas = [1e3, 1e5, 1e7, 1e9]
+
 	param_dict = {
-		'random_seed': [i for i in range(10)],
+		'random_seed': [0, 1, 2, 3, 4, 6, 7, 8, 9],
 		'pixel': [128],
 		'l2_penalty': [0.0],
 		'embedding_dim': [-1],
-		# 'sigma': [100.0, 1000.0],
-		# 'alpha': [1e3, 1e5, 1e7, 1e9],
-		'sigma': [1000.0],
-		'alpha': [1e7],
+		'sigma': sigmas,
+		'alpha': alphas,
 		"architecture": ["pretrained_resnet"],
 		"batch_size": [batch_size],
 		'weighted': [weighted],
@@ -44,12 +45,55 @@ def configure_hsic_model(v_dim, weighted, batch_size):
 	print(param_dict)
 	param_dict_ordered = collections.OrderedDict(sorted(param_dict.items()))
 	keys, values = zip(*param_dict_ordered.items())
-	sweep = [dict(zip(keys, v)) for v in itertools.product(*values)]
+	sweep0 = [dict(zip(keys, v)) for v in itertools.product(*values)]
 
+
+	if v_dim == 1:
+		print("replacing v_dim in seed 5")
+		param_dict = {
+			'random_seed': [5],
+			'pixel': [128],
+			'l2_penalty': [0.0],
+			'embedding_dim': [-1],
+			'sigma': sigmas,
+			'alpha': alphas,
+			# 'sigma': [100.0, 1000.0],
+			# 'alpha': [1e7],
+			"architecture": ["pretrained_resnet"],
+			"batch_size": [batch_size],
+			'weighted': [weighted],
+			"conditional_hsic": ['False'],
+			'num_epochs': [500],
+			'v_dim': [2]
+		}
+
+	else:
+		param_dict = {
+			'random_seed': [5],
+			'pixel': [128],
+			'l2_penalty': [0.0],
+			'embedding_dim': [-1],
+			'sigma': sigmas,
+			'alpha': alphas,
+			# 'sigma': [100.0, 1000.0],
+			# 'alpha': [1e7],
+			"architecture": ["pretrained_resnet"],
+			"batch_size": [batch_size],
+			'weighted': [weighted],
+			"conditional_hsic": ['False'],
+			'num_epochs': [500],
+			'v_dim': [v_dim]
+		}
+
+	param_dict_ordered = collections.OrderedDict(sorted(param_dict.items()))
+	keys, values = zip(*param_dict_ordered.items())
+	sweep1 = [dict(zip(keys, v)) for v in itertools.product(*values)]
+
+	sweep = sweep0 + sweep1
 	return sweep
 
 
-def configure_baseline(v_dim, weighted, batch_size):
+def configure_baseline_all(v_dim, weighted, batch_size):
 	"""Creates hyperparameters for correlations experiment for SLABS model.
 
 	Returns:
@@ -60,35 +104,57 @@ def configure_baseline(v_dim, weighted, batch_size):
 			"v_dim to zero"))
 		v_dim = 0
 
+	sigmas = [1.0, 10.0, 100.0, 1000.0]
+	alphas = [1e3, 1e5, 1e7]
+
 	all_sweep = []
-	for rs in [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]:
-
-		# param_dict = {
-		# 	'random_seed': [rs],
-		# 	'pixel': [128],
-		# 	'l2_penalty': [0.0, 0.0001, 0.001],
-		# 	# 'l2_penalty': [0.0],
-		# 	'embedding_dim': [-1],
-		# 	'sigma': [10.0],
-		# 	'alpha': [0.0],
-		# 	"architecture": ["pretrained_resnet"],
-		# 	"batch_size": [batch_size],
-		# 	'weighted': ['False'],
-		# 	"conditional_hsic": ['False'],
-		# 	'num_epochs': [500],
-		# 	'v_dim': [0]
-		# }
-
-		# print(param_dict)
-		# param_dict_ordered = collections.OrderedDict(sorted(param_dict.items()))
-		# keys, values = zip(*param_dict_ordered.items())
-		# sweep1 = [dict(zip(keys, v)) for v in itertools.product(*values)]
-
+	for rs in [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]:
 
 		param_dict = {
 			'random_seed': [rs],
 			'pixel': [128],
-			'l2_penalty': [0.0, 0.0001, 0.001],
+			'l2_penalty': [0.0, 0.0001,],
+			# 'l2_penalty': [0.0],
+			'embedding_dim': [-1],
+			'sigma': [10.0],
+			'alpha': [0.0],
+			"architecture": ["pretrained_resnet"],
+			"batch_size": [batch_size],
+			'weighted': ['False'],
+			"conditional_hsic": ['False'],
+			'num_epochs': [500],
+			'v_dim': [0]
+		}
+
+		print(param_dict)
+		param_dict_ordered = collections.OrderedDict(sorted(param_dict.items()))
+		keys, values = zip(*param_dict_ordered.items())
+		sweep0 = [dict(zip(keys, v)) for v in itertools.product(*values)]
+
+		param_dict = {
+			'random_seed': [rs],
+			'pixel': [128],
+			'l2_penalty': [0.0, 0.0001],
+			# 'l2_penalty': [0.0],
+			'embedding_dim': [-1],
+			'sigma': [10.0],
+			'alpha': [0.0],
+			"architecture": ["pretrained_resnet"],
+			"batch_size": [batch_size],
+			'weighted': ['True'],
+			"conditional_hsic": ['False'],
+			'num_epochs': [500],
+			'v_dim': [1]
+		}
+
+		param_dict_ordered = collections.OrderedDict(sorted(param_dict.items()))
+		keys, values = zip(*param_dict_ordered.items())
+		sweep1 = [dict(zip(keys, v)) for v in itertools.product(*values)]
+
+		param_dict = {
+			'random_seed': [rs],
+			'pixel': [128],
+			'l2_penalty': [0.0, 0.0001],
 			# 'l2_penalty': [0.0],
 			'embedding_dim': [-1],
 			'sigma': [10.0],
@@ -108,7 +174,7 @@ def configure_baseline(v_dim, weighted, batch_size):
 		param_dict = {
 			'random_seed': [rs],
 			'pixel': [128],
-			'l2_penalty': [0.0, 0.0001, 0.001],
+			'l2_penalty': [0.0, 0.0001],
 			# 'l2_penalty': [0.0],
 			'embedding_dim': [-1],
 			'sigma': [10.0],
@@ -130,8 +196,26 @@ def configure_baseline(v_dim, weighted, batch_size):
 			'pixel': [128],
 			'l2_penalty': [0.0],
 			'embedding_dim': [-1],
-			'sigma': [10.0, 100.0, 1000.0],
-			'alpha': [1e3, 1e5, 1e7, 1e9],
+			'sigma': sigmas,
+			'alpha': alphas,
+			"architecture": ["pretrained_resnet"],
+			"batch_size": [batch_size],
+			'weighted': ['True'],
+			"conditional_hsic": ['False'],
+			'num_epochs': [500],
+			'v_dim': [1]
+		}
+		param_dict_ordered = collections.OrderedDict(sorted(param_dict.items()))
+		keys, values = zip(*param_dict_ordered.items())
+		sweep4 = [dict(zip(keys, v)) for v in itertools.product(*values)]
+
+		param_dict = {
+			'random_seed': [rs],
+			'pixel': [128],
+			'l2_penalty': [0.0],
+			'embedding_dim': [-1],
+			'sigma': sigmas,
+			'alpha': alphas,
 			"architecture": ["pretrained_resnet"],
 			"batch_size": [batch_size],
 			'weighted': ['True'],
@@ -141,16 +225,15 @@ def configure_baseline(v_dim, weighted, batch_size):
 		}
 		param_dict_ordered = collections.OrderedDict(sorted(param_dict.items()))
 		keys, values = zip(*param_dict_ordered.items())
-		sweep4 = [dict(zip(keys, v)) for v in itertools.product(*values)]
-
+		sweep5 = [dict(zip(keys, v)) for v in itertools.product(*values)]
 
 		param_dict = {
 			'random_seed': [rs],
 			'pixel': [128],
 			'l2_penalty': [0.0],
 			'embedding_dim': [-1],
-			'sigma': [10.0, 100.0, 1000.0],
-			'alpha': [1e3, 1e5, 1e7, 1e9],
+			'sigma': sigmas,
+			'alpha': alphas,
 			"architecture": ["pretrained_resnet"],
 			"batch_size": [batch_size],
 			'weighted': ['True'],
@@ -160,12 +243,12 @@ def configure_baseline(v_dim, weighted, batch_size):
 		}
 		param_dict_ordered = collections.OrderedDict(sorted(param_dict.items()))
 		keys, values = zip(*param_dict_ordered.items())
-		sweep5 = [dict(zip(keys, v)) for v in itertools.product(*values)]
+		sweep6 = [dict(zip(keys, v)) for v in itertools.product(*values)]
 
-		all_sweep = all_sweep + sweep2 + sweep3 + sweep4 + sweep5
+		all_sweep = all_sweep + sweep0 + sweep1 + sweep2 + sweep3 + sweep4 + sweep5 + sweep6
 	return all_sweep
 
-def configure_baseline_all(v_dim, weighted, batch_size):
+def configure_baseline(v_dim, weighted, batch_size):
 	"""Creates hyperparameters for correlations experiment for SLABS model.
 
 	Returns:
@@ -175,9 +258,8 @@ def configure_baseline_all(v_dim, weighted, batch_size):
 		warnings.warn(("Unweighted baseline doesn't utilize aux labels. Setting "
 			"v_dim to zero"))
 		v_dim = 0
-
 	param_dict = {
-		'random_seed': [3, 4, 5, 6, 7, 8, 9],
+		'random_seed': [0, 1, 2, 3, 4, 6, 7, 8, 9],
 		'pixel': [128],
 		'l2_penalty': [0.0, 0.0001, 0.001],
 		'embedding_dim': [-1],
@@ -194,8 +276,46 @@ def configure_baseline_all(v_dim, weighted, batch_size):
 	print(param_dict)
 	param_dict_ordered = collections.OrderedDict(sorted(param_dict.items()))
 	keys, values = zip(*param_dict_ordered.items())
-	sweep = [dict(zip(keys, v)) for v in itertools.product(*values)]
+	sweep0 = [dict(zip(keys, v)) for v in itertools.product(*values)]
 
+	if v_dim == 1:
+		print("replacing v_dim in seed 5")
+		param_dict = {
+			'random_seed': [5],
+			'pixel': [128],
+			'l2_penalty': [0.0, 0.0001, 0.001],
+			'embedding_dim': [-1],
+			'sigma': [10.0],
+			'alpha': [0.0],
+			"architecture": ["pretrained_resnet"],
+			"batch_size": [batch_size],
+			'weighted': [weighted],
+			"conditional_hsic": ['False'],
+			'num_epochs': [500],
+			'v_dim': [2]
+		}
+	else:
+		param_dict = {
+			'random_seed': [5],
+			'pixel': [128],
+			'l2_penalty': [0.0, 0.0001, 0.001],
+			'embedding_dim': [-1],
+			'sigma': [10.0],
+			'alpha': [0.0],
+			"architecture": ["pretrained_resnet"],
+			"batch_size": [batch_size],
+			'weighted': [weighted],
+			"conditional_hsic": ['False'],
+			'num_epochs': [500],
+			'v_dim': [v_dim]
+		}
+
+	print(param_dict)
+	param_dict_ordered = collections.OrderedDict(sorted(param_dict.items()))
+	keys, values = zip(*param_dict_ordered.items())
+	sweep1 = [dict(zip(keys, v)) for v in itertools.product(*values)]
+
+	sweep = sweep0 + sweep1
 	return sweep
 
 
@@ -206,14 +326,16 @@ def configure_first_step_model(batch_size):
 		Iterator with all hyperparameter combinations
 	"""
 	param_dict = {
-		'random_seed': [5],
+		'random_seed': [i for i in range(10)],
 		'pixel': [128],
 		'l2_penalty': [0.0, 0.0001, 0.001],
 		'embedding_dim': [-1],
 		"architecture": ["pretrained_resnet"],
 		"batch_size": [batch_size],
 		'num_epochs': [500],
-		"alg_step": ['first']
+		"alg_step": ['first'],
+		'weighted': ['False'],
+		'v_dim': [12]
 	}
 	print(param_dict)
 	param_dict_ordered = collections.OrderedDict(sorted(param_dict.items()))

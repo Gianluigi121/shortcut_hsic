@@ -21,31 +21,38 @@ import os
 import pickle
 import argparse
 import tqdm
+from copy import deepcopy
 from pathlib import Path
 
 import shared.train_utils as utils
 from chexpert_support_device import configurator
 
 # TODO: need to manage overwriting better
-ARMIS_USER = 'precisionhealth'
-ARMIS_MAIN_DIR = '/nfs/turbo/coe-rbg'
+UM_USER = 'mmakar'
 
-if ARMIS_USER == 'precisionhealth':
-	ARMIS_SCRATCH_DIR = '/scratch/precisionhealth_owned_root/precisionhealth_owned1'
+if UM_USER == 'precisionhealth':
+	UM_SCRATCH_DIR = '/scratch/precisionhealth_owned_root/precisionhealth_owned1'
 	ACCOUNT = 'precisionhealth_owned1'
 	PARTITION = 'precisionhealth'
 
-if ARMIS_USER == 'mmakar':
-	ARMIS_SCRATCH_DIR = '/scratch/mmakar_root/mmakar0/'
+if UM_USER == 'mmakar':
+	UM_SCRATCH_DIR = '/scratch/mmakar_root/mmakar0/'
 	ACCOUNT = 'mmakar0'
+
+
+ARMIS_MAIN_DIR = '/nfs/turbo/coe-rbg'
+GL_MAIN_DIR = '/nfs/turbo/coe-soto'
+MIT_MAIN_DIR = '/data/ddmg/scate/'
+
+if os.path.isdir(GL_MAIN_DIR):
+	MAIN_DIR = GL_MAIN_DIR
+	SCRATCH_DIR = UM_SCRATCH_DIR
+	HOST = 'GL'
 	PARTITION = 'gpu'
 
-MIT_MAIN_DIR = '/data/ddmg/scate/'
-MIT_SCRATCH_DIR = '/data/ddmg/scate/scratch'
-
-if os.path.isdir(ARMIS_MAIN_DIR):
+elif os.path.isdir(ARMIS_MAIN_DIR):
 	MAIN_DIR = ARMIS_MAIN_DIR
-	SCRATCH_DIR = ARMIS_SCRATCH_DIR
+	SCRATCH_DIR = UM_SCRATCH_DIR
 	HOST = 'ARMIS'
 
 elif os.path.isdir(MIT_MAIN_DIR):
@@ -77,6 +84,41 @@ def runner(config, base_dir, checkpoint_dir, slurm_save_dir, overwrite,
 		os.system(f'mkdir -p {checkpoint_dir}')
 
 	pickle.dump(config, open(f'{model_dir}/config.pkl', 'wb'))
+
+	if config['num_epochs'] == 5:
+		print("Training from scratch")
+		existing_job = ''
+		config['warm_start_dir'] = 'None'
+		increment = 0 
+
+	else:
+		if config['num_epochs'] ==10: 
+			increment = 5
+		elif config['num_epochs'] ==20: 
+			increment = 10 
+		elif config['num_epochs'] ==50: 
+			increment = 30 
+			
+
+	if increment > 0: 
+		old_config = deepcopy(config)
+		old_config['num_epochs'] = config['num_epochs'] - increment
+		old_hash_string = utils.config_hasher(old_config)
+		warm_start_dir = os.path.join(base_dir, 'tuning', old_hash_string, 'saved_model')
+		old_hash_string = old_hash_string[:8]
+		existing_job = subprocess.check_output((
+			f"squeue | grep {old_hash_string} | awk " "'{print $1}'"), shell=True)
+		existing_job = existing_job.decode("utf-8").replace("\n", "")
+
+		if (existing_job != '') | (os.path.exists(warm_start_dir)):
+			config['warm_start_dir'] = warm_start_dir
+			config['num_epochs'] = config['num_epochs'] - increment 	
+
+	else:
+		print("couldn't find warmstart directory. Training from scratch")
+		existing_job = ''
+		config['warm_start_dir'] = 'None'
+
 	config['data_dir'] = base_dir
 	config['exp_dir'] = model_dir
 	config['checkpoint_dir'] = checkpoint_dir
@@ -93,6 +135,8 @@ def runner(config, base_dir, checkpoint_dir, slurm_save_dir, overwrite,
 	f.write('#SBATCH --output=gpu.out\n')
 	f.write('#SBATCH --tasks-per-node=1\n')
 	f.write('#SBATCH --gres=gpu:1\n')
+	if existing_job != '':
+		f.write(f'#SBATCH --dependency=afterok:{existing_job}\n')
 	# f.write('#SBATCH --gpus-per-task=1\n')
 	if HOST == 'ARMIS':
 		f.write(f'#SBATCH --account={ACCOUNT}\n')
@@ -100,9 +144,15 @@ def runner(config, base_dir, checkpoint_dir, slurm_save_dir, overwrite,
 		# f.write(f'#SBATCH --mail-user=mmakar@umich.edu\n')
 		# f.write(f'#SBATCH --mail-type=BEGIN,END\n')
 		# f.write('#SBATCH -w, --nodelist=armis28004\n')
+	if HOST == 'GL':
+		f.write(f'#SBATCH --account={ACCOUNT}\n')
+		f.write(f'#SBATCH --partition={PARTITION}\n')
+		f.write(f'#SBATCH --mail-user=mmakar@umich.edu\n')
+		f.write(f'#SBATCH --mail-type=BEGIN,END\n')
+		f.write('#SBATCH --mem-per-gpu=20000m\n')
 	if HOST == 'TIG':
 		f.write('#SBATCH --partition=gpu\n')
-	f.write('#SBATCH --mem-per-gpu=20000m\n')
+		f.write('#SBATCH --mem-per-gpu=20000m\n')
 	# first check if there is any room on nfs
 	f.write(f'''nfs_amount_used=$(df {MAIN_DIR}'''
 		''' | awk '{printf sub(/%.*/, "")}')\n'''

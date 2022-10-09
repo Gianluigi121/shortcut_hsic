@@ -26,18 +26,18 @@ def configure_hsic_model(skew_train, v_mode, v_dim, weighted, batch_size):
 		Iterator with all hyperparameter combinations
 	"""
 	param_dict = {
-		'random_seed': [i for i in range(5)],
-		'pixel': [128],
+		'random_seed': [0],
+		'pixel': [512],
 		'l2_penalty': [0.0],
 		'embedding_dim': [-1],
-		'sigma': [1.0],
-		'alpha': [100.0, 1000.0, 10000.0, 100000.0, 1000000.0, 10000000.0],
+		'sigma': [0.001, 0.1, 1.0, 10.0, 100.0],
+		'alpha': [100000.0],
 		"architecture": ["pretrained_densenet"],
 		"batch_size": [batch_size],
 		'weighted': [weighted],
 		"conditional_hsic": ['False'],
 		"skew_train": [skew_train],
-		'num_epochs': [50],
+		'num_epochs': [5],
 		'v_mode':[v_mode],
 		'v_dim': [v_dim]
 	}
@@ -54,10 +54,17 @@ def configure_baseline(skew_train,v_mode, v_dim, weighted, batch_size):
 	Returns:
 		Iterator with all hyperparameter combinations
 	"""
+
+	if (v_dim !=0 and weighted == 'False'):
+		warnings.warn(("Unweighted baseline doesn't utilize aux labels. Setting "
+			"v_dim to zero"))
+		v_dim = 0
+
 	param_dict = {
-		'random_seed': [i for i in range(5)],
-		'pixel': [128],
-		'l2_penalty': [0.0, 0.0001, 0.001],
+		'random_seed': [0],
+		'pixel': [256],
+		# 'l2_penalty': [0.0, 0.0001, 0.001],
+		'l2_penalty': [0.0],
 		'embedding_dim': [-1],
 		'sigma': [10.0],
 		'alpha': [0.0],
@@ -66,12 +73,11 @@ def configure_baseline(skew_train,v_mode, v_dim, weighted, batch_size):
 		'weighted': [weighted],
 		"conditional_hsic": ['False'],
 		"skew_train": [skew_train],
-		'num_epochs': [50]
+		'num_epochs': [10],
+		'v_mode': [v_mode],
+		'v_dim': [v_dim]
 	}
 
-	if v_mode != "normal":
-		param_dict['v_mode'] = [v_mode]
-		param_dict['v_dim'] = [v_dim]
 
 	print(param_dict)
 	param_dict_ordered = collections.OrderedDict(sorted(param_dict.items()))
@@ -90,12 +96,13 @@ def configure_first_step_model(skew_train, batch_size):
 	param_dict = {
 		'random_seed': [0],
 		'pixel': [128],
-		'l2_penalty': [0.0, 0.0001, 0.001],
+		# 'l2_penalty': [0.0, 0.0001, 0.001],
+		'l2_penalty': [0.0, 0.0001],
 		'embedding_dim': [-1],
-		"architecture": ["pretrained_densenet"],
+		"architecture": ["pretrained_resnet"],
 		"batch_size": [batch_size],
 		"skew_train": [skew_train],
-		'num_epochs': [50],
+		'num_epochs': [5],
 		"alg_step": ['first']
 	}
 	print(param_dict)
@@ -138,7 +145,7 @@ def get_sweep(experiment, model, v_mode, v_dim, batch_size):
 		 weighted='False', batch_size=batch_size)
 
 	if model == 'weighted_baseline':
-		return configure_baseline(skew_train=skew_train, 
+		return configure_baseline(skew_train=skew_train,
 			v_mode=v_mode, v_dim=v_dim, weighted='True',
 			batch_size=batch_size)
 

@@ -44,6 +44,7 @@ flags.DEFINE_integer('embedding_dim', -1,
 flags.DEFINE_string('gpuid', '0', 'Gpu id to run the model on.')
 flags.DEFINE_string('cleanup', 'False',
 		'remove tensorflow artifacts after training to reduce memory usage.')
+flags.DEFINE_string('warm_start_dir', 'None', 'directory to warmstart from.')
 flags.DEFINE_string('debugger', 'False', 'debugger mode')
 
 
@@ -61,10 +62,11 @@ def main(argv):
 
 	if FLAGS.gpuid == 'cpu':
 		restrict_GPU_tf('100', memfrac=0, use_cpu=True)
+
 	else:
 		restrict_GPU_tf(FLAGS.gpuid)
 
-	py1_y0_shift_list = [0.1, 0.5, 0.9, 0.95]
+	py1_y0_shift_list = [0.1, 0.5, 0.9]
 
 	if FLAGS.alg_step != "first":
 		train.train(
@@ -86,6 +88,7 @@ def main(argv):
 			random_seed=FLAGS.random_seed,
 			cleanup=FLAGS.cleanup,
 			py1_y0_shift_list=py1_y0_shift_list,
+			warm_start_dir=FLAGS.warm_start_dir,
 			debugger=FLAGS.debugger)
 	else:
 		# TODO: don't hard code number of classes

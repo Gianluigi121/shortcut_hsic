@@ -13,9 +13,6 @@ def compute_loss(labels, logits, embedding, sample_weights, params):
 
 
 def compute_loss_unweighted(labels, logits, embedding, params):
-	# labels: ground truth labels([y0(pnemounia), y1(sex), y2(support device)])
-	# logits: predicted label(pnemounia)
-	# embedding: a learned representation vector
 	if params['n_classes'] ==1:
 		y_main = tf.expand_dims(labels[:, 0], axis=-1)
 
@@ -37,9 +34,6 @@ def compute_loss_unweighted(labels, logits, embedding, params):
 
 
 def compute_loss_weighted(labels, logits, embedding, sample_weights, params):
-	# labels: ground truth labels([y0(pnemounia), y1(sex), y2(support device)])
-	# logits: predicted label(pnemounia)
-	# embedding: a learned representation vector
 	if params['n_classes'] == 1:
 		y_main = tf.expand_dims(labels[:, 0], axis=-1)
 		individual_losses = tf.keras.losses.binary_crossentropy(y_main, logits,
@@ -122,24 +116,6 @@ def auroc(labels, predictions):
 	auc_metric.update_state(y_true=labels, y_pred=predictions)
 	return auc_metric
 
-def get_prediction_by_group(labels, predictions):
-
-	mean_pred_dict = {}
-
-	for y0_val in [0, 1]:
-		for y1_val in [0, 1]:
-			for y2_val in [0, 1]:
-				y0_mask = y0_val * labels[:, 0] + (1.0 - y0_val) * (1.0 - labels[:, 0])
-				y1_mask = y1_val * labels[:, 1] + (1.0 - y1_val) * (1.0 - labels[:, 1])
-				y2_mask = y2_val * labels[:, 2] + (1.0 - y2_val) * (1.0 - labels[:, 2])
-
-				labels_mask = tf.where(y0_mask * y1_mask * y2_mask)
-				mean_pred_dict[f'mean_pred_{y0_val}{y1_val}{y2_val}'] = tf.compat.v1.metrics.mean(
-					tf.gather(predictions, labels_mask)
-				)
-
-	return mean_pred_dict
-
 def get_hsic_at_sigmas(sigma_list, labels, embedding, sample_weights,
 	eager):
 	result_dict = {}
@@ -157,7 +133,7 @@ def get_hsic_at_sigmas(sigma_list, labels, embedding, sample_weights,
 
 def get_eval_metrics_dict(labels, predictions, sample_weights, params,
 	eager=False,
-	sigma_list=[0.001, 0.01, 0.1, 1.0, 10.0, 100.0, 1000.0, 10000.0]):
+	sigma_list=[0.1, 1.0, 10.0, 100.0, 1000.0, 10000.0]):
 	n_classes = params['n_classes']
 	del params
 	if n_classes ==1:
@@ -168,9 +144,7 @@ def get_eval_metrics_dict(labels, predictions, sample_weights, params,
 	eval_metrics_dict = {}
 	eval_metrics_dict["auc"] = auroc(
 		labels=y_main, predictions=predictions["probabilities"])
-
-	# mean_pred_dict = get_prediction_by_group(labels, predictions["probabilities"])
-
+	
 	hsic_val_dict = get_hsic_at_sigmas(sigma_list, labels,
 		predictions['embedding'], sample_weights, eager=eager)
 

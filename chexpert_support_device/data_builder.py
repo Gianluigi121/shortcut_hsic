@@ -1,5 +1,5 @@
 """Functions to create the chexpert datasets."""
-import os, shutil
+import os
 import functools
 from copy import deepcopy
 import numpy as np
@@ -177,15 +177,16 @@ def get_skewed_data(cand_df, py1d=0.9, py2d=0.9, py00=0.7, rng=None):
 	if rng is None:
 		rng = np.random.RandomState(0)
 	# --- Fix the conditional distributions of y2
-	cand_df11 = sample_y2_on_y1(cand_df, 1, 1, py2d, rng)
-	cand_df10 = sample_y2_on_y1(cand_df, 1, 0, py2d, rng)
-	cand_df01 = sample_y2_on_y1(cand_df, 0, 1, py2d, rng)
-	cand_df00 = sample_y2_on_y1(cand_df, 0, 0, py2d, rng)
+	# cand_df11 = sample_y2_on_y1(cand_df, 1, 1, py2d, rng)
+	# cand_df10 = sample_y2_on_y1(cand_df, 1, 0, py2d, rng)
+	# cand_df01 = sample_y2_on_y1(cand_df, 0, 1, py2d, rng)
+	# cand_df00 = sample_y2_on_y1(cand_df, 0, 0, py2d, rng)
 
-	new_cand_df = cand_df11.append(cand_df10).append(cand_df01).append(cand_df00)
-	new_cand_df.reset_index(inplace=True, drop=True)
+	# new_cand_df = cand_df11.append(cand_df10).append(cand_df01).append(cand_df00)
+	# new_cand_df.reset_index(inplace=True, drop=True)
 
 	# --- Fix the conditional distributions of y1
+	new_cand_df = cand_df.copy()
 	cand_df1 = sample_y1_on_main(new_cand_df, 1, py1d, rng)
 	cand_df0 = sample_y1_on_main(new_cand_df, 0, py1d, rng)
 
@@ -199,7 +200,6 @@ def get_skewed_data(cand_df, py1d=0.9, py2d=0.9, py00=0.7, rng=None):
 
 def save_created_data(data_frame, experiment_directory, filename):
 	D = data_frame.shape[1]
-
 	if 'Path' in data_frame.columns:
 		txt_df = f'{MAIN_DIR}/' + data_frame.Path
 	else:
@@ -211,9 +211,41 @@ def save_created_data(data_frame, experiment_directory, filename):
 		index=False)
 
 
-def load_created_data(chexpert_data_dir, random_seed, v_mode, v_dim,
-	skew_train, weighted, alg_step):
-	experiment_directory = f'{chexpert_data_dir}/experiment_data/rs{random_seed}'
+
+def extract_dim(data, v_dim, alg_step):
+	data = data['0'].str.split(",", expand=True)
+	data.columns = ['img_name'] + [
+	f'y{i}' for i in range(data.shape[1] -1)]
+	v_to_drop = [f'y{i}' for i in range(1 + v_dim, data.shape[1]-1)]
+
+	if alg_step != "None": 
+		v_to_drop.append('y0')
+
+	if len(v_to_drop) > 0:
+		data.drop(v_to_drop, axis =1, inplace=True)
+
+	txt_df = data.img_name 
+
+	label_cols = [
+		col for col in data.columns if col.startswith('y')
+	]
+
+	for colid, col in enumerate(label_cols):
+		txt_df = txt_df + ',' + data[col].astype(str)
+
+	txt_df = txt_df.to_frame(name='0')
+	return txt_df
+
+
+
+def load_created_data(experiment_directory, skew_train, weighted, v_mode, v_dim, alg_step):
+	if alg_step == 'None':
+		return load_created_data_full(experiment_directory, skew_train, weighted, v_mode, v_dim, alg_step)
+	else:
+		return load_created_data_subsets(experiment_directory, skew_train, weighted, v_mode, v_dim, alg_step)
+
+
+def load_created_data_full(experiment_directory, skew_train, weighted, v_mode, v_dim, alg_step):
 
 	skew_str = 'skew' if skew_train == 'True' else 'unskew'
 
@@ -221,44 +253,42 @@ def load_created_data(chexpert_data_dir, random_seed, v_mode, v_dim,
 		v_str = f'noisy{v_dim}_'
 	elif v_mode == 'corry':
 		v_str = f'corry{v_dim}_'
-	else:
+	elif v_mode == 'normal':
 		v_str = ''
 
 	train_data = pd.read_csv(
 		f'{experiment_directory}/{v_str}{skew_str}_train.txt')
+
+	train_data = extract_dim(train_data, v_dim, alg_step)
+
 	if weighted == 'True':
-		train_data = wt.get_binary_weights(train_data, 'chexpert')
+		train_data = wt.get_permutation_weights(train_data,
+			'chexpert_sd', 'tr_consistent')
+	elif weighted == 'True_bal':
+		train_data = wt.get_permutation_weights(train_data,
+			'chexpert_sd', 'bal')
+
 	train_data = train_data.values.tolist()
 	train_data = [
 		tuple(train_data[i][0].split(',')) for i in range(len(train_data))
 	]
+
 	validation_data = pd.read_csv(
 		f'{experiment_directory}/{v_str}{skew_str}_valid.txt')
 
+	validation_data = extract_dim(validation_data, v_dim, alg_step)
+
 	if weighted == 'True':
-		validation_data = wt.get_binary_weights(validation_data,
-			'chexpert')
+		validation_data = wt.get_permutation_weights(validation_data,
+			'chexpert_sd', 'tr_consistent')
+	elif weighted == 'True_bal':
+		validation_data = wt.get_permutation_weights(validation_data,
+			'chexpert_sd', 'tr_consistent')
 
 	validation_data = validation_data.values.tolist()
 	validation_data = [
 		tuple(validation_data[i][0].split(',')) for i in range(len(validation_data))
 	]
-
-	if alg_step == 'first':
-		first_second_step_idx = pickle.load(
-			open(f'{experiment_directory}/first_second_step_idx.pkl', 'rb'))
-		train_idx = first_second_step_idx['first']['train_idx']
-		valid_idx = first_second_step_idx['first']['valid_idx']
-
-		validation_data = [train_data[i] for i in valid_idx]
-		train_data = [train_data[i] for i in train_idx]
-
-	elif alg_step == 'second':
-		first_second_step_idx = pickle.load(
-			open(f'{experiment_directory}/first_second_step_idx.pkl', 'rb'))
-		train_idx = first_second_step_idx['second']['train_idx']
-		train_data = [train_data[i] for i in train_idx]
-
 
 	pskew_list = [0.1, 0.3, 0.5, 0.7, 0.9, 0.95]
 
@@ -266,41 +296,96 @@ def load_created_data(chexpert_data_dir, random_seed, v_mode, v_dim,
 	for pskew in pskew_list:
 		test_data = pd.read_csv(
 			f'{experiment_directory}/{v_str}{pskew}_test.txt'
-		).values.tolist()
+		)
+
+		test_data = extract_dim(test_data, v_dim, alg_step)
+		test_data = test_data.values.tolist()
+
 		test_data = [
 			tuple(test_data[i][0].split(',')) for i in range(len(test_data))
 		]
 		varying_joint_test_data_dict[pskew] = test_data
 
 
-	fixed_joint_skew_test_data_dict = {}
-	for pskew in pskew_list:
-		test_data = pd.read_csv(
-			f'{experiment_directory}/{v_str}{pskew}_fj09_test.txt'
-		).values.tolist()
-		test_data = [
-			tuple(test_data[i][0].split(',')) for i in range(len(test_data))
-		]
-		fixed_joint_skew_test_data_dict[pskew] = test_data
+	# fixed_joint_skew_test_data_dict = {}
+	# for pskew in pskew_list:
+	# 	test_data = pd.read_csv(
+	# 		f'{experiment_directory}/{v_str}{pskew}_fj09_test.txt'
+	# 	).values.tolist()
+	# 	test_data = [
+	# 		tuple(test_data[i][0].split(',')) for i in range(len(test_data))
+	# 	]
+	# 	fixed_joint_skew_test_data_dict[pskew] = test_data
 
 
-	fixed_joint_unskew_test_data_dict = {}
-	for pskew in pskew_list:
-		test_data = pd.read_csv(
-			f'{experiment_directory}/{v_str}{pskew}_fj05_test.txt'
-		).values.tolist()
-		test_data = [
-			tuple(test_data[i][0].split(',')) for i in range(len(test_data))
-		]
-		fixed_joint_unskew_test_data_dict[pskew] = test_data
+	# fixed_joint_unskew_test_data_dict = {}
+	# for pskew in pskew_list:
+	# 	test_data = pd.read_csv(
+	# 		f'{experiment_directory}/{v_str}{pskew}_fj05_test.txt'
+	# 	).values.tolist()
+	# 	test_data = [
+	# 		tuple(test_data[i][0].split(',')) for i in range(len(test_data))
+	# 	]
+	# 	fixed_joint_unskew_test_data_dict[pskew] = test_data
 
 
-	test_data_dict = {
-		'varying_joint' : varying_joint_test_data_dict,
-		'fixed_joint_0.9' : fixed_joint_skew_test_data_dict,
-		'fixed_joint_0.5': fixed_joint_unskew_test_data_dict
-	}
+	# test_data_dict = {
+	# 	'varying_joint' : varying_joint_test_data_dict,
+	# 	'fixed_joint_0.9' : fixed_joint_skew_test_data_dict,
+	# 	'fixed_joint_0.5': fixed_joint_unskew_test_data_dict
+	# }
+	test_data_dict = varying_joint_test_data_dict
 	return train_data, validation_data, test_data_dict
+
+
+def load_created_data_subsets(experiment_directory, skew_train, weighted, v_mode, v_dim, alg_step):
+
+	skew_str = 'skew' if skew_train == 'True' else 'unskew'
+
+	if v_mode == 'noisy':
+		v_str = f'noisy{v_dim}_'
+	elif v_mode == 'corry':
+		v_str = f'corry{v_dim}_'
+	elif v_mode == 'normal':
+		v_str = ''
+
+
+	train_data = pd.read_csv(
+		f'{experiment_directory}/{v_str}{skew_str}_train.txt')
+
+	train_data = extract_dim(train_data, v_dim, alg_step)
+
+	if weighted == 'True':
+		train_data = wt.get_permutation_weights(train_data,
+			'chexpert_sd', 'tr_consistent')
+	elif weighted == 'True_bal':
+		train_data = wt.get_permutation_weights(train_data,
+			'chexpert_sd', 'bal')
+
+	idx_dict = pickle.load(
+		open(f'{experiment_directory}/first_step.pkl',
+			'rb'))
+
+	train_data = train_data_full.iloc[idx_dict['train_idx']]
+	validation_data = train_data_full.iloc[idx_dict['valid_idx']]
+	test_data = train_data_full.iloc[idx_dict['test_idx']]
+
+	train_data = train_data.values.tolist()
+	train_data = [
+		tuple(train_data[i][0].split(',')) for i in range(len(train_data))
+	]
+
+	validation_data = validation_data.values.tolist()
+	validation_data = [
+		tuple(validation_data[i][0].split(',')) for i in range(len(validation_data))
+	]
+
+	test_data = test_data.values.tolist()
+	test_data = [
+		tuple(test_data[i][0].split(',')) for i in range(len(test_data))
+	]
+
+	return train_data, validation_data, test_data
 
 def get_noisy_data(data, random_seed, v_dim, v_mode):
 
@@ -405,7 +490,7 @@ def create_additional_v(experiment_directory, random_seed,
 
 def create_save_chexpert_lists(chexpert_data_dir, p_tr=.7, p_val=0.25,
 	random_seed=None):
-	p_dom = 0.9
+	p_dom = 0.1
 	if random_seed is None:
 		rng = np.random.RandomState(0)
 	else:
@@ -477,56 +562,50 @@ def create_save_chexpert_lists(chexpert_data_dir, p_tr=.7, p_val=0.25,
 		save_created_data(ts_sk_df, experiment_directory=experiment_directory,
 			filename=f'{pskew}_test')
 
-	# get test fixed aux joint skewed
-	for pskew in pskew_list:
-		ts_sk_df = get_skewed_data(ts_candidates_df, py1d=pskew, py2d=p_dom, py00=0.7,
-			rng=rng)
-		ts_sk_df.drop(['uid', 'patient', 'study'], axis=1, inplace=True)
-		save_created_data(ts_sk_df, experiment_directory=experiment_directory,
-			filename=f'{pskew}_fj09_test')
+	# # get test fixed aux joint skewed
+	# for pskew in pskew_list:
+	# 	ts_sk_df = get_skewed_data(ts_candidates_df, py1d=pskew, py2d=p_dom, py00=0.7,
+	# 		rng=rng)
+	# 	ts_sk_df.drop(['uid', 'patient', 'study'], axis=1, inplace=True)
+	# 	save_created_data(ts_sk_df, experiment_directory=experiment_directory,
+	# 		filename=f'{pskew}_fj09_test')
 
-	# get test fixed aux joint
-	for pskew in pskew_list:
-		ts_sk_df = get_skewed_data(ts_candidates_df, py1d=pskew, py2d=0.5, py00=0.7,
-			rng=rng)
-		ts_sk_df.drop(['uid', 'patient', 'study'], axis=1, inplace=True)
-		save_created_data(ts_sk_df, experiment_directory=experiment_directory,
-			filename=f'{pskew}_fj05_test')
+	# # get test fixed aux joint
+	# for pskew in pskew_list:
+	# 	ts_sk_df = get_skewed_data(ts_candidates_df, py1d=pskew, py2d=0.5, py00=0.7,
+	# 		rng=rng)
+	# 	ts_sk_df.drop(['uid', 'patient', 'study'], axis=1, inplace=True)
+	# 	save_created_data(ts_sk_df, experiment_directory=experiment_directory,
+	# 		filename=f'{pskew}_fj05_test')
 
-def get_splits_for_alg(experiment_directory, skew_train, p_val):
-
+def get_splits_for_alg(experiment_directory, random_seed, 
+	skew_train):
+	rng = np.random.RandomState(random_seed + 1234)
 	skew_str = 'skew' if skew_train == 'True' else 'unskew'
 
 	train_data = pd.read_csv(
 		f'{experiment_directory}/{skew_str}_train.txt')
 
-	first_step_idx = np.random.choice(range(len(train_data)),
-		size = int(len(train_data)/2), replace=False).tolist()
+	# --- split into training validation and estimation/testing
+	train_valid_idx = rng.choice(train_data.shape[0], 
+		size = int(0.5*train_data.shape[0]), 
+		replace = False).tolist()
 
-	second_step_idx = [
-		i for i in range(len(train_data)) if i not in first_step_idx
-	]
+	test_idx = list(
+		set(range(train_data.shape[0])) - set(train_valid_idx))
 
-	first_step_train_idx = np.random.choice(
-		first_step_idx, size = int(len(first_step_idx) * (1 - p_val)),
-		replace = False
-		).tolist()
+	# --- split into first step train and test 
+	train_idx = rng.choice(train_valid_idx, 
+		size = int(0.7 * len(train_valid_idx)))
 
-	first_step_valid_idx = [
-		i for i in first_step_idx if i not in first_step_train_idx
-	]
+	valid_idx = list(
+		set(range(len(train_valid_idx))) - set(train_idx))
 
-	split_dict = {
-		'first': {
-			'train_idx': first_step_train_idx,
-			'valid_idx': first_step_valid_idx
-		},
-		'second': second_step_idx
+	idx_dict = {
+		'train_idx': train_idx, 
+		'valid_idx': valid_idx, 
+		'test_idx': test_idx
 	}
-
-	pickle.dump(split_dict,
-		open(f'{experiment_directory}/first_second_step_idx.pkl', 'wb')
-		)
 
 def build_input_fns(chexpert_data_dir, v_mode, skew_train='False',
 	weighted='False', p_tr=.7, p_val=0.25, v_dim=0, random_seed=None,
@@ -545,6 +624,7 @@ def build_input_fns(chexpert_data_dir, v_mode, skew_train='False',
 
 	skew_str = 'skew' if skew_train == 'True' else 'unskew'
 	if v_mode == 'noisy':
+		assert 1==2
 		if not os.path.exists(
 			f'{experiment_directory}/noisy{v_dim}_{skew_str}_train.txt'):
 			create_additional_v(experiment_directory=experiment_directory,
@@ -552,23 +632,23 @@ def build_input_fns(chexpert_data_dir, v_mode, skew_train='False',
 				skew_train=skew_train, weighted=weighted)
 
 	if v_mode == 'corry':
+		assert 1==2
 		if not os.path.exists(
 			f'{experiment_directory}/corry{v_dim}_{skew_str}_train.txt'):
 			create_additional_v(experiment_directory=experiment_directory,
 				random_seed=random_seed, v_mode=v_mode, v_dim=v_dim,
 				skew_train=skew_train, weighted=weighted)
 
-	if alg_step != 'None':
-		if not os.path.exists(
-			f'{experiment_directory}/first_second_step_idx.pkl'):
-			get_splits_for_alg(experiment_directory=experiment_directory,
-				skew_train=skew_train, p_val=p_val)
+	if not os.path.exists(
+		f'{experiment_directory}/first_second_step_idx.pkl'):
+		get_splits_for_alg(experiment_directory=experiment_directory,
+			skew_train=skew_train, random_seed=random_seed)
 
 	# --load splits
 	train_data, valid_data, shifted_data_dict = load_created_data(
-		chexpert_data_dir=chexpert_data_dir, random_seed=random_seed,
-		v_mode=v_mode, v_dim=v_dim, skew_train=skew_train,
-		weighted=weighted, alg_step=alg_step)
+		experiment_directory=experiment_directory, skew_train=skew_train,
+		weighted=weighted, v_mode=v_mode, v_dim=v_dim, 
+		 alg_step=alg_step)
 
 	# --this helps auto-set training steps at train time
 	train_data_size = len(train_data)
@@ -600,17 +680,24 @@ def build_input_fns(chexpert_data_dir, v_mode, skew_train='False',
 			1)
 		return valid_dataset
 
+
+	def final_valid_input_fn(params):
+		map_to_image_label_wrapper = functools.partial(map_to_image_label,
+			pixel=params['pixel'], weighted=params['weighted'])
+		batch_size = params['batch_size']
+		valid_dataset = tf.data.Dataset.from_tensor_slices(valid_data)
+		valid_dataset = valid_dataset.map(map_to_image_label_wrapper,
+			num_parallel_calls=1)
+		valid_dataset = valid_dataset.batch(int(1e5)).repeat(1)
+		return valid_dataset
+
 	# Build an iterator over the heldout set (shifted distribution).
 	def eval_input_fn_creater(py, params, fixed_joint=False, aux_joint_skew=0.5):
+		del fixed_joint, aux_joint_skew
 		map_to_image_label_wrapper = functools.partial(map_to_image_label_test,
 			pixel=params['pixel'], weighted=params['weighted'])
-		if fixed_joint:
-			if aux_joint_skew == 0.9:
-				shifted_test_data = shifted_data_dict['fixed_joint_0.9'][py]
-			elif aux_joint_skew == 0.5:
-				shifted_test_data = shifted_data_dict['fixed_joint_0.5'][py]
-		else:
-			shifted_test_data = shifted_data_dict['varying_joint'][py]
+
+		shifted_test_data = shifted_data_dict[py]
 		batch_size = params['batch_size']
 
 		def eval_input_fn():
@@ -620,4 +707,7 @@ def build_input_fns(chexpert_data_dir, v_mode, skew_train='False',
 			return eval_shift_dataset
 		return eval_input_fn
 
-	return train_data_size, train_input_fn, valid_input_fn, eval_input_fn_creater
+	return train_data_size, train_input_fn, valid_input_fn, final_valid_input_fn, eval_input_fn_creater
+
+
+

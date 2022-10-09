@@ -95,10 +95,8 @@ def runner(config, base_dir, checkpoint_dir, slurm_save_dir, overwrite,
 	f = open(f'{slurm_save_dir}/{hash_string}.sbatch', 'x')
 	f.write('#!/bin/bash\n')
 	f.write('#SBATCH --time=10:00:00\n')
-	f.write('#SBATCH --cpus-per-task=5\n')
-	f.write('#SBATCH --nodes=1\n')
+	f.write('#SBATCH --cpus-per-task=2\n')
 	f.write('#SBATCH --output=gpu.out\n')
-	f.write('#SBATCH --tasks-per-node=1\n')
 	f.write('#SBATCH --gres=gpu:1\n')
 	# f.write('#SBATCH --gpus-per-task=1\n')
 	if HOST == 'ARMIS':
@@ -108,7 +106,7 @@ def runner(config, base_dir, checkpoint_dir, slurm_save_dir, overwrite,
 		f.write(f'#SBATCH --mail-type=BEGIN,END\n')
 		# f.write('#SBATCH -w, --nodelist=armis28004\n')
 		# f.write('#SBATCH --mem-per-gpu=20000m\n')
-	if HOST == 'GL': 
+	if HOST == 'GL':
 		f.write(f'#SBATCH --account={ACCOUNT}\n')
 		f.write(f'#SBATCH --partition={PARTITION}\n')
 		f.write(f'#SBATCH --mail-user=mmakar@umich.edu\n')
